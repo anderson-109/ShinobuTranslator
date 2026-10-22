@@ -9,6 +9,7 @@ import type {
   LlmProvider,
   LlmThinkingLevel,
   TextTranslator,
+  TextTranslationTransport,
   TranslationReferenceContext,
 } from '@shinobu/text-translation';
 import { isLlmProvider } from '@shinobu/text-translation';
@@ -66,6 +67,7 @@ export type {
 export type ImagePipelineExecution = {
   textTranslator: TextTranslator;
   classifyVisionRegions?: VisionRegionClassifier;
+  ocrTransport?: TextTranslationTransport;
 };
 
 export type ImagePipelineDependencies = {
@@ -108,7 +110,7 @@ export type PipelineConfig = {
   typesetDebug: boolean;
   eraseDebug: boolean;
   collectDebugLog: boolean;
-  ocrEngine: 'paddleocr_v6_medium';
+  ocrEngine: 'paddleocr_v6_medium' | 'openai';
   ocrCompactActiveBatch?: boolean;
   ocrPostFilter?: 'off' | 'balanced';
   llmOcrFilter?: boolean;
@@ -454,7 +456,7 @@ function validateConfig(config: unknown): config is PipelineConfig {
     && typeof config.typesetDebug === 'boolean'
     && typeof config.eraseDebug === 'boolean'
     && typeof config.collectDebugLog === 'boolean'
-    && config.ocrEngine === 'paddleocr_v6_medium'
+    && (config.ocrEngine === 'paddleocr_v6_medium' || config.ocrEngine === 'openai')
     && (
       config.ocrCompactActiveBatch === undefined
       || typeof config.ocrCompactActiveBatch === 'boolean'
@@ -1422,6 +1424,7 @@ export function createImagePipeline(
           modelRuntime: dependencies.modelRuntime,
           textTranslator,
           classifyVisionRegions: execution.classifyVisionRegions,
+          ocrTransport: execution.ocrTransport,
           observer: dependencies.observer,
           detectionFallbackStrategy:
             dependencies.detectionFallbackStrategy,

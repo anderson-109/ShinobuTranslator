@@ -65,7 +65,7 @@ export const llmBuiltInProviderDefinitions: Record<
   openai: {
     label: 'OpenAI', webLabel: 'OpenAI',
     baseUrl: 'https://api.openai.com/v1',
-    models: ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6-sol', 'gpt-6-luna'],
+    models: ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6-sol', 'gpt-6-luna', 'gpt-4.1-mini', 'gpt-4.1'],
     defaultAuthMode: 'openai_oauth',
   },
 };

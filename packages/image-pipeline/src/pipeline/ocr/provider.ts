@@ -1,5 +1,5 @@
 import type { OcrRunDebugInfo, QuadPoint, TextDirection, TextRegion } from "../../types";
-import type { PlatformProvider, PipelineImage } from "../../runtime/platform";
+import type { PlatformProvider, PipelineImage, PipelineCanvas } from "../../runtime/platform";
 import type { ModelRuntime } from '@shinobu/model-runtime';
 import { sampleEdgeColors, sampleCornerBgColor, sampleTextColors } from "./colorSampling";
 import { colorDistance } from "../typeset/color";
@@ -25,7 +25,7 @@ export type OcrRecognizeOutput = {
 export type OcrProvider = {
   name: string;
   recognize(
-    image: PipelineImage,
+    image: PipelineImage | PipelineCanvas,
     regions: TextRegion[],
     platform?: PlatformProvider,
     modelRuntime?: ModelRuntime,
@@ -62,7 +62,7 @@ export function inferDirectionFromQuad(
 }
 
 function cropQuadRegion(
-  image: PipelineImage,
+  image: PipelineImage | PipelineCanvas,
   quad: [QuadPoint, QuadPoint, QuadPoint, QuadPoint],
   platform: PlatformProvider,
 ): { data: Uint8ClampedArray; width: number; height: number } | null {
@@ -84,7 +84,7 @@ function cropQuadRegion(
 
 export function fillMissingOcrFields(
   results: OcrRecognizeResult[],
-  image?: PipelineImage,
+  image?: PipelineImage | PipelineCanvas,
   platform?: PlatformProvider,
 ): OcrRecognizeResult[] {
   return results.map((r) => {

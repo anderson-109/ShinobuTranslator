@@ -15,6 +15,7 @@ const pipelineMocks = vi.hoisted(() => ({
   detectTextRegionsWithMask: vi.fn(),
   materializePrecomputedDetection: vi.fn(),
   runOcr: vi.fn(),
+  runOpenAiOcr: vi.fn(),
   describeVisionRegions: vi.fn(),
   preparePaddleOcrRuntime: vi.fn(),
   warmupPaddleOcrRuntime: vi.fn(),
@@ -52,6 +53,9 @@ vi.mock('../../packages/image-pipeline/src/pipeline/detect/precomputedDetection'
 }));
 vi.mock('../../packages/image-pipeline/src/pipeline/ocr', () => ({
   runOcr: pipelineMocks.runOcr,
+}));
+vi.mock('../../packages/image-pipeline/src/pipeline/ocr/openai', () => ({
+  runOpenAiOcr: pipelineMocks.runOpenAiOcr,
 }));
 vi.mock('../../packages/image-pipeline/src/pipeline/visionRegionFilter', () => ({
   describeVisionRegions: pipelineMocks.describeVisionRegions,
@@ -264,6 +268,22 @@ afterEach(() => {
 });
 
 describe('runPipeline', () => {
+  it('uses OpenAI OCR without loading Paddle and passes its text to translation', async () => {
+    pipelineMocks.runOpenAiOcr.mockResolvedValueOnce({ regions: [ocrRegion] });
+    const output = await runPipeline(createFile(), {
+      ...baseConfig, ocrEngine: 'openai', translator: 'llm', llmProvider: 'openai',
+      llmBaseUrl: 'https://api.openai.com/v1', llmModel: 'gpt-4.1-mini',
+      ocrPostFilter: 'balanced',
+    }, () => {}, runtimeOptions);
+    expect(pipelineMocks.runOpenAiOcr).toHaveBeenCalledOnce();
+    expect(pipelineMocks.runOcr).not.toHaveBeenCalled();
+    expect(pipelineMocks.getModelSession.mock.calls.some(([name]) => name === 'ocr')).toBe(false);
+    expect(pipelineMocks.preparePaddleOcrRuntime).not.toHaveBeenCalled();
+    expect(pipelineMocks.runTranslate.mock.calls[0][0].regions).toEqual([ocrRegion]);
+    expect(pipelineMocks.drawTypeset.mock.calls[0][1]).toEqual([translatedRegion]);
+    expect(output.resultCanvas).toBe(typesetCanvas);
+  });
+
   it.each(['translate', 'erase', 'original'] as const)('filters false positives before translation and erasure in %s mode', async (processMode) => {
     const falsePositive = { ...ocrRegion, id: 'false-positive', sourceText: '幻觉' };
     pipelineMocks.runOcr.mockResolvedValueOnce({ regions: [ocrRegion, falsePositive], debug: null, actualProvider: 'wasm' });

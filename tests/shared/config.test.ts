@@ -120,6 +120,8 @@ describe("built-in LLM catalog", () => {
           "gpt-6.1-sol",
           "gpt-6-sol",
           "gpt-6-luna",
+          "gpt-4.1-mini",
+          "gpt-4.1",
         ],
       },
     });
@@ -652,6 +654,19 @@ describe("OpenAI provider settings", () => {
 });
 
 describe("OCR engine settings", () => {
+  it("preserves OpenAI OCR and validates API Key configuration while allowing a switch back", () => {
+    const settings = normalizeSettings({
+      ocrEngine: 'openai', translator: 'llm', llmProvider: 'openai',
+      llmProfiles: { openai: { authMode: 'api_key', apiKey: 'test-key', modelPreset: 'gpt-4.1-mini' } },
+    });
+    expect(toPipelineConfig(settings).ocrEngine).toBe('openai');
+    expect(normalizeSettings(settings).ocrEngine).toBe('openai');
+    expect(validateSettings(settings)).toBeNull();
+    expect(validateSettings({ ...settings, translator: 'google_web' })).toContain('OpenAI OCR');
+    const local = normalizeSettings({ ...settings, ocrEngine: 'paddleocr_v6_medium', translator: 'google_web' });
+    expect(validateSettings(local)).toBeNull();
+    expect(toPipelineConfig(local).ocrEngine).toBe('paddleocr_v6_medium');
+  });
   it("uses PaddleOCR v6 medium as the default OCR engine in settings and pipeline config", () => {
     const settings = normalizeSettings({});
 

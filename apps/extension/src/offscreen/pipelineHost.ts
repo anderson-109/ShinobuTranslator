@@ -534,6 +534,7 @@ export class PipelineHost {
         precomputedDetection: job.precomputedDetection,
         collectEditableLayers: job.collectEditableLayers,
       }, {
+        ocrTransport: this.translationTransport,
         textTranslator: createTextTranslator({
           transport: this.translationTransport,
           observer: this.diagnostics,

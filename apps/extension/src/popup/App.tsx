@@ -1055,6 +1055,22 @@ export function App() {
                     >
                       {showLocalPipelineOptions ? (
                         <>
+                          <div className="field">
+                            <Label className="field-label">OCR 引擎</Label>
+                            <SelectControl
+                              ariaLabel="OCR 引擎"
+                              options={[
+                                { value: 'paddleocr_v6_medium', label: 'PaddleOCR（本机）' },
+                                { value: 'openai', label: 'OpenAI OCR（API Key）' },
+                              ]}
+                              value={settings.ocrEngine}
+                              onChange={(value) => updateField('ocrEngine', value as ExtensionSettingsProjection['ocrEngine'])}
+                              disabled={loading}
+                            />
+                            {settings.ocrEngine === 'openai' ? (
+                              <p>请选择 LLM → OpenAI → API Key，填入密钥并选择支持图片的模型（例如 gpt-4.1-mini）。OCR 会发送文字区域图片并产生 API 费用。</p>
+                            ) : null}
+                          </div>
                           <ControlHint content="直接修改图片上的文字和去字图层。" onEscapeKeyDown={() => setModeOptionsOpen(false)}>
                             <div className="mode-options-switch-row">
                               <Switch

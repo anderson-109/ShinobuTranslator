@@ -74,7 +74,7 @@ function createDefaultLlmProfiles(): Record<LlmProvider, LlmProviderProfile> {
   };
 }
 
-export type OcrEngine = 'paddleocr_v6_medium';
+export type OcrEngine = 'paddleocr_v6_medium' | 'openai';
 export type ProcessMode = 'translate' | 'erase' | 'original';
 
 export const geminiAppModelOptions: Array<{ value: GeminiAppModel; label: string }> = [
@@ -187,8 +187,8 @@ function sanitizeBoolean(value: unknown, fallback: boolean): boolean {
   return value;
 }
 
-function normalizeOcrEngine(_value: unknown): OcrEngine {
-  return 'paddleocr_v6_medium';
+function normalizeOcrEngine(value: unknown): OcrEngine {
+  return value === 'openai' ? 'openai' : 'paddleocr_v6_medium';
 }
 
 function normalizeProcessMode(value: unknown): ProcessMode {
@@ -515,6 +515,12 @@ export function usesGeminiApiImagePipeline(settings: GeminiImagePipelineSelectio
 }
 
 export function validateSettings(settings: ExtensionSettings): string | null {
+  if (settings.ocrEngine === 'openai' && !usesNanoBananaImagePipeline(settings)) {
+    if (settings.translator !== 'llm' || settings.llmProvider !== 'openai'
+      || settings.llmProfiles.openai.authMode !== 'api_key') {
+      return 'OpenAI OCR 需要选择 LLM / OpenAI / API Key，并使用支持图片的模型';
+    }
+  }
   if (usesNanoBananaImagePipeline(settings)) {
     if (!settings.geminiAppPromptTemplate.trim()) {
       return 'Nano Banana 提示词不能为空';

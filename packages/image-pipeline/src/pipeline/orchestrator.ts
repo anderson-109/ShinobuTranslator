@@ -18,6 +18,7 @@ import {
   type PrecomputedTextDetection,
 } from './detect/precomputedDetection';
 import { runOcr } from "./ocr";
+import { runOpenAiOcr } from "./ocr/openai";
 import { preparePaddleOcrRuntime, warmupPaddleOcrRuntime } from "./ocr/paddleocrProvider";
 import { prepareInpaintSource, runInpaint, type PreparedInpaintSource } from "./inpaint";
 import { drawTypeset } from "./typeset";
@@ -40,7 +41,7 @@ import {
   type DiagnosticLogObserver,
 } from "@shinobu/diagnostics";
 import { createCancelledError } from "../protocol";
-import type { TextTranslator } from '@shinobu/text-translation';
+import type { TextTranslator, TextTranslationTransport } from '@shinobu/text-translation';
 import { hasTranslatableText } from '../translatableText';
 import { describeVisionRegions, type VisionRegionClassifier } from './visionRegionFilter';
 import { buildEraseLayerCanvases } from '../editor/eraseLayers';
@@ -59,6 +60,7 @@ export type PipelineRunOptions = {
   modelRuntime?: ModelRuntime;
   detectionFallbackStrategy: DetectionFallbackStrategy;
   textTranslator?: TextTranslator;
+  ocrTransport?: TextTranslationTransport;
   classifyVisionRegions?: VisionRegionClassifier;
   observer?: DiagnosticLogObserver;
   precomputedDetection?: PrecomputedTextDetection;
@@ -553,7 +555,9 @@ export async function runPipeline(
 
   const startOcrRuntimeProbe = (): Promise<RuntimeStageStatus> => {
     if (!ocrRuntimeProbePromise) {
-      ocrRuntimeProbePromise = probeRuntime(modelRuntime, "ocr");
+      ocrRuntimeProbePromise = config.ocrEngine === 'openai'
+        ? Promise.resolve({ model: 'ocr', enabled: true, detail: 'OpenAI 视觉 OCR（API）' })
+        : probeRuntime(modelRuntime, "ocr");
     }
     return ocrRuntimeProbePromise;
   };
@@ -714,20 +718,22 @@ export async function runPipeline(
     if (!stopAfterOrder && inpaintRuntimeProbeSchedule === "current") {
       startInpaintRuntimeProbe();
     }
-    const ocrResult = await runOcr(image, latestRegions, config.ocrEngine, platform, {
+    const ocrResult = config.ocrEngine === 'openai'
+      ? await runOpenAiOcr(originalCanvas, latestRegions, config, platform, options.ocrTransport, signal)
+      : await runOcr(image, latestRegions, config.ocrEngine, platform, {
       compactActiveBatch: config.ocrCompactActiveBatch,
     }, modelRuntime);
     throwIfCancelled(signal);
     latestRegions = ocrResult.regions;
     stageRegions.ocr = cloneTextRegions(latestRegions);
-    ocrDebug = ocrResult.debug;
+    ocrDebug = ocrResult.debug ?? null;
     ocrCanvas = !collectStagePreviews || ocrResult.regions.length === 0
       ? originalCanvas
       : drawRegions(originalCanvas, ocrResult.regions, "OCR 识别", (region) => region.sourceText, platform);
     cleanedCanvas = ocrCanvas;
     resultCanvas = cleanedCanvas;
     const ocrRuntime = getRuntimeStage("ocr");
-    if (ocrResult.actualProvider !== ocrRuntime?.provider) {
+    if (ocrResult.actualProvider && ocrResult.actualProvider !== ocrRuntime?.provider) {
       const providerLabel = ocrResult.actualProvider === "webnn"
         ? `${ocrResult.actualProvider}/${ocrResult.actualWebnnDeviceType ?? "default"}`
         : ocrResult.actualProvider;
@@ -794,7 +800,7 @@ export async function runPipeline(
   // be reclaimed before the remaining stages allocate render canvases.
   detectedBubbles = [];
 
-  if ((config.ocrPostFilter ?? "balanced") === "off") {
+  if (config.ocrEngine === "openai" || (config.ocrPostFilter ?? "balanced") === "off") {
     ocrPostFilterDebug = {
       mode: "off",
       ruleId: OCR_POST_FILTER_RULE_ID,

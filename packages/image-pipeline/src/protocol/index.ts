@@ -429,7 +429,7 @@ function isValidPipelineConfig(value: unknown): value is PipelineConfig {
   if (value.translator !== 'google_web' && value.translator !== 'llm') return false;
   if (!isLlmProvider(value.llmProvider)) return false;
   if (value.llmAuthMode !== 'api_key' && value.llmAuthMode !== 'openai_oauth' && value.llmAuthMode !== 'gemini_app') return false;
-  if (value.ocrEngine !== 'paddleocr_v6_medium') return false;
+  if (value.ocrEngine !== 'paddleocr_v6_medium' && value.ocrEngine !== 'openai') return false;
   if (value.processMode !== 'translate' && value.processMode !== 'erase' && value.processMode !== 'original') return false;
   if (typeof value.typesetDebug !== 'boolean' || typeof value.eraseDebug !== 'boolean' || typeof value.collectDebugLog !== 'boolean') return false;
   if (value.ocrCompactActiveBatch !== undefined && typeof value.ocrCompactActiveBatch !== 'boolean') return false;

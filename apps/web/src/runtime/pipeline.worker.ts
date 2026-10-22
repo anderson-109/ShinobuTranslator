@@ -152,6 +152,7 @@ attachWorkerTranslatorHost<
       config: config.pipeline,
       workingCopy: normalizeWorkingCopy(input),
     }, {
+      ocrTransport: translationTransport,
       textTranslator: createTextTranslator({
         transport: translationTransport,
       }),

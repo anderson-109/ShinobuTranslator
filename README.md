@@ -154,12 +154,25 @@ Pixiv 漫画阅读模式与 GoMuRaw（`gomuraw.onl`、`gomuraw.wiki`、`gomuraw.
 | --- | --- |
 | 翻译服务 | 谷歌翻译或大模型翻译 |
 | 大模型提供商 | DeepSeek、Nano Banana、GLM、Kimi、MiniMax、MiMo、OpenAI、自定义提供商 |
+| OCR 引擎（模式选项） | PaddleOCR（本机）或 OpenAI OCR（API Key） |
 | 模型 | 可使用内置模型列表，也可填写自定义模型名 |
 | 目标语言 | 简体中文或繁体中文 |
 | 处理模式 | 翻译、仅去字、排版原文 |
 | 调试选项 | 阶段耗时、排版调试、去字调试、日志下载 |
 
 使用大模型翻译时，需要填写对应提供商的 API Key。API Key 由用户在扩展设置中输入，项目仓库不包含任何密钥。
+
+### OpenAI OCR 与翻译
+
+1. 在扩展弹出页将翻译服务切换为「大模型翻译」，提供商选择「OpenAI」。
+2. 认证方式选择「API Key」，输入自己的 OpenAI API Key。
+3. 模型选择 `gpt-4.1-mini`、`gpt-4.1`，或填写自己可用的视觉模型名称。
+4. 在「模式」选项中将「OCR 引擎」切换为「OpenAI OCR（API Key）」。OCR 与翻译沿用同一个 OpenAI Key 和模型。
+5. 目标语言选择繁体中文或其他需要的语言，再翻译图片。
+
+OpenAI OCR 会把检测到的文字区域图片发送到 OpenAI，翻译会发送识别后的文字，均可能产生 API 费用。文字检测、气泡检测、去字和排版仍沿用原有流程及模型。Key 使用现有的扩展凭据存储，不写入图片记录或导出配置。
+
+原有选项全部保留：OCR 随时可切回「PaddleOCR（本机）」；翻译仍可选择谷歌翻译或其他大模型提供商。使用本机 OCR 时，也可搭配 OpenAI 翻译。
 
 ## 本地模型与运行时
 
