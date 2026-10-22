@@ -44,7 +44,7 @@ describe('ExtensionControlClient', () => {
       ...settings,
       translator: 'llm',
       llmProvider: 'openai',
-    })).toBe('openai-oauth');
+    })).toBeNull();
     expect(resolveProviderAuthorizationTarget({
       ...settings,
       translator: 'llm',
@@ -53,10 +53,11 @@ describe('ExtensionControlClient', () => {
         ...settings.llmProfiles,
         openai: {
           ...settings.llmProfiles.openai,
-          authMode: 'api_key',
+          authMode: 'openai_oauth',
+          modelPreset: 'gpt-6-astra',
         },
       },
-    })).toBeNull();
+    })).toBe('openai-oauth');
     expect(resolveProviderAuthorizationTarget({
       ...settings,
       translator: 'llm',

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Anderson Index for PDF 翻譯</title><link rel="icon" href="/brand/anderson-pdf.svg" type="image/svg+xml"></head>
+  <body>
+    <header id="toolbar">
+      <div class="brand"><img src="/brand/anderson-pdf.svg" width="42" height="42" alt=""><strong>Anderson Index <span>for PDF 翻譯</span></strong></div>
+      <div id="reading-anchor"></div>
+      <label>同時處理 <select id="parallel-pages" aria-label="同時處理頁數"><option value="2">2 頁</option><option value="1">1 頁（節省記憶體）</option></select></label>
+      <label>翻譯模式 <select id="translation-mode"><option value="instant">即時翻譯</option><option value="batch">Batch 省費模式</option></select></label>
+      <label class="file-button">選擇 PDF <input id="file" type="file" accept="application/pdf,.pdf"></label>
+      <button id="previous" disabled>上一頁</button>
+      <label>第 <input id="page" type="number" min="1" value="1" disabled> 頁 / <span id="total">—</span></label>
+      <button id="next" disabled>下一頁</button>
+      <select id="fit-mode" aria-label="PDF 顯示方式"><option value="height">適應高度</option><option value="page">整頁適應畫面</option><option value="width">適合寬度</option></select>
+      <button id="fullscreen">全螢幕</button>
+      <button id="stop" disabled>停止翻譯</button>
+      <button id="clear-cache" disabled>清除此 PDF 快取</button>
+      <button id="batch-jobs-open">Batch 工作清單</button>
+      <a id="original" hidden>使用原始 PDF 閱讀器</a>
+    </header>
+    <p id="status" role="status" aria-live="polite">選擇本機 PDF，或直接在瀏覽器開啟 PDF 網址。翻譯沿用擴充功能設定。</p>
+    <span id="cache-state" aria-live="polite"></span>
+    <section id="batch-panel" aria-label="PDF Batch 翻譯" hidden>
+      <div id="batch-controls" hidden>
+        <p>GPT-5-mini · OpenAI Batch API · 最長 24 小時 · API 費用約省 50%。整份 PDF 的頁面影像會送往 OpenAI；使用設定中的 OpenAI API Key。1–500 頁，準備資料最多 200 MB。</p>
+        <button id="batch-start" disabled>整份 PDF 背景翻譯</button>
+        <button id="batch-refresh">查詢進度</button>
+        <button id="batch-cancel" disabled>取消 Batch 工作</button>
+        <p id="batch-status" role="status" aria-live="polite">選擇 PDF 後即可送出。準備頁面時請保持此分頁開啟；送出後可關閉。</p>
+      </div>
+    </section>
+    <main><div id="page-container"><img id="pdf-page" alt="PDF 頁面" hidden></div></main>
+    <dialog id="batch-jobs" aria-labelledby="batch-jobs-title">
+      <header class="batch-jobs-header"><div><h2 id="batch-jobs-title">Batch 工作清單</h2><p>追蹤每份 PDF 的處理進度與完成紀錄</p></div><button id="batch-jobs-close" aria-label="關閉工作清單">關閉</button></header>
+      <div class="batch-jobs-tools"><label>搜尋 PDF <input id="batch-jobs-search" type="search" placeholder="輸入檔名或工作編號"></label><label>狀態 <select id="batch-jobs-filter"><option value="all">全部工作</option><option value="active">處理中</option><option value="completed">已完成</option><option value="attention">失敗／已取消</option></select></label><button id="batch-jobs-refresh">更新進度</button></div>
+      <p id="batch-jobs-message" role="status" aria-live="polite"></p>
+      <div id="batch-jobs-list"></div>
+      <p class="batch-jobs-note">清單每 10 秒更新；背景每分鐘向 OpenAI 查詢。失敗頁資料保留於本機供重試，成功頁面沿用快取。重試只送出尚無快取的失敗頁面，可能產生 API 費用。</p>
+    </dialog>
+    <script type="module" src="/src/pdf/index.ts"></script>
+  </body>
+</html>

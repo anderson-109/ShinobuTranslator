@@ -1,4 +1,4 @@
-import { isLlmProvider } from '@shinobu/text-translation';
+import { isLlmProvider, isTranslationReferenceContext } from '@shinobu/text-translation';
 import type {
   OcrRunDebugInfo,
   OcrPostFilterDebugInfo,
@@ -152,7 +152,7 @@ export type LocalPipelineClientMessage =
     };
 
 export type LocalPipelineHostMessage =
-  | { type: 'host-ready'; hostInstanceId: string }
+  | { type: 'host-ready'; hostInstanceId: string; concurrency?: 1 | 2 }
   | { type: 'idle-close'; hostInstanceId: string }
   | {
       type: 'ready';
@@ -284,7 +284,8 @@ export function isLocalPipelineHostMessage(value: unknown): value is LocalPipeli
     return false;
   }
   if (value.type === 'host-ready' || value.type === 'idle-close') {
-    return typeof value.hostInstanceId === 'string' && value.hostInstanceId.length > 0;
+    return typeof value.hostInstanceId === 'string' && value.hostInstanceId.length > 0
+      && (value.type !== 'host-ready' || value.concurrency === undefined || value.concurrency === 1 || value.concurrency === 2);
   }
   if (!isJobMessage(value)) {
     return false;
@@ -401,11 +402,7 @@ function isValidFileMeta(value: unknown): value is LocalPipelineFileMeta {
 }
 
 function isValidTranslationContext(value: unknown): boolean {
-  if (value === undefined) return true;
-  if (!isRecord(value)) return false;
-  return value.source === 'x_tweet'
-    && typeof value.currentTweetText === 'string'
-    && (value.quotedTweetText === undefined || typeof value.quotedTweetText === 'string');
+  return value === undefined || isTranslationReferenceContext(value);
 }
 
 function isValidPipelineConfig(value: unknown): value is PipelineConfig {
@@ -429,7 +426,7 @@ function isValidPipelineConfig(value: unknown): value is PipelineConfig {
   if (value.translator !== 'google_web' && value.translator !== 'llm') return false;
   if (!isLlmProvider(value.llmProvider)) return false;
   if (value.llmAuthMode !== 'api_key' && value.llmAuthMode !== 'openai_oauth' && value.llmAuthMode !== 'gemini_app') return false;
-  if (value.ocrEngine !== 'paddleocr_v6_medium' && value.ocrEngine !== 'openai') return false;
+  if (value.ocrEngine !== 'paddleocr_v6_medium' && value.ocrEngine !== 'openai' && value.ocrEngine !== 'yomitoku') return false;
   if (value.processMode !== 'translate' && value.processMode !== 'erase' && value.processMode !== 'original') return false;
   if (typeof value.typesetDebug !== 'boolean' || typeof value.eraseDebug !== 'boolean' || typeof value.collectDebugLog !== 'boolean') return false;
   if (value.ocrCompactActiveBatch !== undefined && typeof value.ocrCompactActiveBatch !== 'boolean') return false;

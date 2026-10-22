@@ -40,7 +40,10 @@ export async function sendExtensionControlCommand(
     }
     return response.result;
   } catch (error) {
-    const wrapped = new Error(`扩展控制通信失败: ${toErrorMessage(error)}`);
+    const detail = toErrorMessage(error);
+    const wrapped = new Error(/Extension context invalidated/i.test(detail)
+      ? '擴充功能已更新或重新載入，請重新整理目前網頁後再翻譯。'
+      : `扩展控制通信失败: ${detail}`);
     if (
       error
       && typeof error === 'object'

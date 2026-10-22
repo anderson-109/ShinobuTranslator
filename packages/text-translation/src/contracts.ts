@@ -17,7 +17,37 @@ export type TranslationReferenceContext = {
   source: 'x_tweet';
   currentTweetText: string;
   quotedTweetText?: string;
+} | {
+  source: 'pdf_document';
+  pageNumber: number;
+  currentPageText: string;
+  previousPageText: string;
+  nextPageText: string;
+  previousTranslations: Array<{ pageNumber: number; sourceText: string; translatedText: string }>;
 };
+
+/** Shared protocol validation keeps untrusted reference data bounded. */
+export function isTranslationReferenceContext(value: unknown): value is TranslationReferenceContext {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const item = value as Record<string, unknown>;
+  const only = (keys: string[]): boolean => Object.keys(item).every((key) => keys.includes(key));
+  if (item.source === 'x_tweet') return only(['source', 'currentTweetText', 'quotedTweetText'])
+    && typeof item.currentTweetText === 'string'
+    && (item.quotedTweetText === undefined || typeof item.quotedTweetText === 'string');
+  if (item.source !== 'pdf_document' || !only(['source', 'pageNumber', 'currentPageText', 'previousPageText', 'nextPageText', 'previousTranslations'])) return false;
+  const text = (value: unknown, max: number): boolean => typeof value === 'string' && value.length <= max;
+  return Number.isSafeInteger(item.pageNumber) && (item.pageNumber as number) > 0
+    && text(item.currentPageText, 4000) && text(item.previousPageText, 2000) && text(item.nextPageText, 2000)
+    && Array.isArray(item.previousTranslations) && item.previousTranslations.length <= 3
+    && item.previousTranslations.every((entry: unknown) => {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return false;
+      const prior = entry as Record<string, unknown>;
+      return Object.keys(prior).every((key) => ['pageNumber', 'sourceText', 'translatedText'].includes(key))
+        && Number.isSafeInteger(prior.pageNumber) && (prior.pageNumber as number) > 0
+        && (prior.pageNumber as number) < (item.pageNumber as number)
+        && text(prior.sourceText, 1500) && text(prior.translatedText, 1500);
+    });
+}
 
 export type LlmChatContentPart =
   | { type: 'text'; text: string }

@@ -3,7 +3,7 @@ import { describeVisionRegions } from '../../packages/image-pipeline/src/pipelin
 import type { PipelineCanvas, PlatformProvider } from '../../packages/image-pipeline/src/runtime/platform';
 import type { TextRegion } from '../../packages/image-pipeline/src/types';
 
-it('crops padded detection blocks and preserves OCR metadata', () => {
+it('crops padded detection blocks and preserves OCR metadata', async () => {
   const drawImage = vi.fn();
   const crop = {
     width: 0, height: 0,
@@ -22,7 +22,7 @@ it('crops padded detection blocks and preserves OCR metadata', () => {
   ];
   const merged = [{ ...detected[0], id: 'ocr', prob: 0.6, sourceText: 'あ' }];
 
-  expect(describeVisionRegions(merged, detected, original, platform)).toEqual([expect.objectContaining({
+  expect(await describeVisionRegions(merged, detected, original, platform)).toEqual([expect.objectContaining({
     id: 'ocr', text: 'あ', ocrConfidence: 0.6, detectorConfidence: 0.7,
     areaPercent: 12, boxPercent: { x: 10, y: 20, width: 30, height: 40 },
     imageDataUrl: 'data:image/jpeg;base64,YQ==',
@@ -32,7 +32,7 @@ it('crops padded detection blocks and preserves OCR metadata', () => {
   expect(crop.dispose).toHaveBeenCalledOnce();
 });
 
-it('clamps crops to the source, caps their size, and disposes them when encoding fails', () => {
+it('clamps crops to the source, caps their size, and disposes them when encoding fails', async () => {
   const drawImage = vi.fn();
   const dispose = vi.fn();
   const crop = { width: 1024, height: 512, getContext: () => ({ drawImage }),
@@ -40,8 +40,20 @@ it('clamps crops to the source, caps their size, and disposes them when encoding
   const platform = { createCanvas: vi.fn(() => crop) } as unknown as PlatformProvider;
   const original = { width: 2000, height: 1000 } as PipelineCanvas;
   const region = { id: 'large', box: { x: 0, y: 0, width: 2000, height: 1000 }, sourceText: 'あ', translatedText: '' };
-  expect(() => describeVisionRegions([region], [], original, platform)).toThrow('encoding failed');
+  await expect(describeVisionRegions([region], [], original, platform)).rejects.toThrow('encoding failed');
   expect(platform.createCanvas).toHaveBeenCalledWith(1024, 512);
   expect(drawImage).toHaveBeenCalledWith(original, 0, 0, 2000, 1000, 0, 0, 1024, 512);
   expect(dispose).toHaveBeenCalledOnce();
+});
+
+it('encodes a Worker crop through convertToBlob without invoking synchronous canvas APIs', async () => {
+  const synchronous = vi.fn(() => { throw new Error('No synchronous export in Workers'); });
+  const crop = { width: 10, height: 10, getContext: () => ({ drawImage: vi.fn() }),
+    toDataURL: synchronous, convertToBlob: vi.fn(async () => new Blob(['a'], { type: 'image/jpeg' })), dispose: vi.fn() } as unknown as PipelineCanvas;
+  const platform = { createCanvas: () => crop } as unknown as PlatformProvider;
+  const region = { id: 'a', box: { x: 0, y: 0, width: 10, height: 10 }, sourceText: '', translatedText: '' };
+  const result = await describeVisionRegions([region], [], { width: 10, height: 10 } as PipelineCanvas, platform);
+  expect(result[0].imageDataUrl).toBe('data:image/jpeg;base64,YQ==');
+  expect(synchronous).not.toHaveBeenCalled();
+  expect(crop.dispose).toHaveBeenCalledOnce();
 });

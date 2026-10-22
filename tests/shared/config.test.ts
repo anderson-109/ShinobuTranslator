@@ -116,12 +116,14 @@ describe("built-in LLM catalog", () => {
         label: "OpenAI",
         baseUrl: "https://api.openai.com/v1",
         models: [
+          "gpt-5-mini",
           "gpt-6-astra",
           "gpt-6.1-sol",
           "gpt-6-sol",
           "gpt-6-luna",
           "gpt-4.1-mini",
           "gpt-4.1",
+          "gpt-4o-mini",
         ],
       },
     });
@@ -144,7 +146,7 @@ describe("built-in LLM catalog", () => {
 
   it.each([
     ['glm', 'glm-5.2', 'glm-5.3'],
-    ['openai', 'gpt-5.4-mini', 'gpt-6-astra'],
+    ['openai', 'gpt-5.4-mini', 'gpt-5-mini'],
     ['kimi', 'kimi-k2.7-code-highspeed', 'kimi-k3'],
     ['minimax', 'MiniMax-M2.7-highspeed', 'MiniMax-M3'],
     ['minimax', 'MiniMax-M2.5-highspeed', 'MiniMax-M3'],
@@ -324,14 +326,15 @@ describe.each([
 });
 
 describe("OpenAI provider settings", () => {
-  it("normalizes the OpenAI provider with OAuth as the default auth mode", () => {
+  it("normalizes the OpenAI provider with GPT-5 mini and API Key defaults", () => {
     const settings = normalizeSettings({
       translator: "llm",
       llmProvider: "openai",
     });
 
     expect(settings.llmProvider).toBe("openai");
-    expect(settings.llmProfiles.openai.authMode).toBe("openai_oauth");
+    expect(settings.llmProfiles.openai.authMode).toBe("api_key");
+    expect(settings.llmProfiles.openai.modelPreset).toBe('gpt-5-mini');
     expect(resolveLlmBaseUrl(settings)).toBe("https://api.openai.com/v1");
   });
 

@@ -161,6 +161,95 @@ afterEach(() => {
 });
 
 describe('ReadingModeController', () => {
+  it('cancels both concurrent pages without starting the next group', async () => {
+    const signals: AbortSignal[] = [];
+    const run: NonNullable<ImageTranslationExecutionDependencies['runLocalPipeline']> = vi.fn(async (_file, _config, _progress, options) => new Promise<LocalPipelineResult>((_resolve, reject) => {
+      const signal = options!.signal!;
+      signals.push(signal);
+      signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+    }));
+    const { controller, bar, readingAdapter } = createThreePageBatchScenario(run);
+    readingAdapter.getReadingConcurrency = () => 2;
+    controller.sync();
+    bar.all.click?.();
+    await vi.waitFor(() => expect(run).toHaveBeenCalledTimes(2));
+    controller.cancel();
+    await vi.waitFor(() => expect(signals.every(signal => signal.aborted)).toBe(true));
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(bar.all.disabled).toBe(false);
+    expect(bar.error.textContent).toContain('已停止翻譯');
+    controller.teardown();
+  });
+  it('runs two pages concurrently, remembers each completion immediately, and waits for context before the next pair', async () => {
+    const finish: Array<(result: LocalPipelineResult) => void> = [];
+    const run = vi.fn(async () => new Promise<LocalPipelineResult>(resolve => finish.push(resolve)));
+    const { controller, bar, readingAdapter, store, pages } = createThreePageBatchScenario(run);
+    readingAdapter.getReadingConcurrency = () => 2;
+    const remember = vi.fn();
+    readingAdapter.rememberReadingPage = remember;
+    const contextSnapshots: string[][] = [];
+    readingAdapter.prepareReadingPage = async page => {
+      contextSnapshots.push(pages.filter(p => store.get(p.key)?.translatedUrl).map(p => p.key));
+      return { source: { kind: 'remote-image', url: page.originalUrl } };
+    };
+    controller.sync();
+    bar.all.click?.();
+    await vi.waitFor(() => expect(run).toHaveBeenCalledTimes(2));
+    finish[1](localResult());
+    await vi.waitFor(() => expect(remember).toHaveBeenCalledTimes(1));
+    expect(remember.mock.calls[0][0].key).toBe(pages[1].key);
+    expect(run).toHaveBeenCalledTimes(2);
+    finish[0](localResult());
+    await vi.waitFor(() => expect(run).toHaveBeenCalledTimes(3));
+    expect(contextSnapshots[2]).toEqual(['page-1', 'page-2']);
+    finish[2](localResult());
+    await vi.waitFor(() => expect(bar.all.label.textContent).toBe('显示原图'));
+    expect(remember).toHaveBeenCalledTimes(3);
+    controller.teardown();
+  });
+  it('keeps the actual error visible when current-page translation fails', async () => {
+    const { controller, bar, adapter, pages } = createThreePageBatchScenario(async () => { throw new Error('OpenAI 401: invalid API key'); });
+    adapter.getVisiblePages = () => [pages[0]];
+    controller.sync();
+    bar.current.click?.();
+    await vi.waitFor(() => expect(bar.error.textContent).toContain('OpenAI 401: invalid API key'));
+    expect(bar.error.dataset.variant).toBe('error');
+    controller.teardown();
+  });
+
+  it('cancels a running batch and never admits the next page', async () => {
+    const run: NonNullable<ImageTranslationExecutionDependencies['runLocalPipeline']> = vi.fn(async (_file, _config, _progress, options) => new Promise<LocalPipelineResult>((_resolve, reject) => {
+      options?.signal?.addEventListener('abort', () => reject(options.signal?.reason), { once: true });
+    }));
+    const { controller, bar } = createThreePageBatchScenario(run);
+    controller.sync();
+    bar.all.click?.();
+    await vi.waitFor(() => expect(run).toHaveBeenCalledOnce());
+    controller.cancel();
+    await vi.waitFor(() => expect(bar.error.textContent).toContain('已停止翻譯'));
+    expect(run).toHaveBeenCalledOnce();
+    controller.teardown();
+  });
+  it.each(['current', 'all'] as const)('clears %s progress after cancellation and permits retry', async (kind) => {
+    let rejectRun: (reason: unknown) => void = () => {};
+    const run: NonNullable<ImageTranslationExecutionDependencies['runLocalPipeline']> = vi.fn(async () => new Promise<LocalPipelineResult>((_resolve, reject) => { rejectRun = reject; }));
+    const { controller, bar, adapter, pages } = createThreePageBatchScenario(run);
+    adapter.getVisiblePages = () => [pages[0]];
+    controller.sync();
+    bar[kind].click?.();
+    await vi.waitFor(() => expect(run).toHaveBeenCalledOnce());
+    controller.cancel();
+    rejectRun(new Error('cancelled'));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(bar[kind].disabled).toBe(false);
+    expect(bar[kind].label.textContent).not.toMatch(/排队|准备|翻译中/);
+    expect(bar.error.textContent).toContain('已停止翻譯');
+    bar[kind].click?.();
+    await vi.waitFor(() => expect(run).toHaveBeenCalledTimes(2));
+    controller.cancel();
+    rejectRun(new Error('cancelled'));
+    controller.teardown();
+  });
   it('shows cached translations when enabling automatic mode or revisiting a reading context', () => {
     const runLocalPipeline = vi.fn(async () => localResult());
     const { controller, bar, adapter, readingAdapter, store, pages } = createThreePageBatchScenario(runLocalPipeline);
@@ -797,7 +886,7 @@ describe('ReadingModeController', () => {
     await vi.waitFor(() => expect(bar.all.disabled).toBe(false));
     expect(runLocalPipeline).toHaveBeenCalledTimes(2);
     expect(downloadImage).toHaveBeenCalledTimes(2);
-    expect(bar.error.textContent).toBe('已完成 1/3：流水线运行环境不可用，请检查设置后重试');
+    expect(bar.error.textContent).toBe('已完成 1/3：第 2 頁翻譯失敗：pipeline host unavailable');
     expect(bar.error.dataset.variant).toBe('error');
   });
 
@@ -839,7 +928,7 @@ describe('ReadingModeController', () => {
 
     await vi.waitFor(() => expect(bar.all.disabled).toBe(false));
     expect(runLocalPipeline).toHaveBeenCalledTimes(3);
-    expect(bar.error.textContent).toBe('已完成 2/3；第 2 页失败：图片翻译失败，请重试');
+    expect(bar.error.textContent).toBe('已完成 2/3；第 2 页失败：第 2 頁翻譯失敗：decode failed');
     expect(bar.all.label.textContent).toBe('重试翻译全部');
 
     bar.all.click?.();

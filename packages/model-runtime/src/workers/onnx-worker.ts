@@ -58,7 +58,7 @@ function ensureOrtEnv(): void {
       : 1;
   const canUseWasmThreads =
     typeof globalThis !== "undefined" && !!(globalThis as unknown as { crossOriginIsolated?: boolean }).crossOriginIsolated;
-  const wasmThreads = canUseWasmThreads ? Math.max(1, Math.min(8, hwThreads)) : 1;
+  const wasmThreads = canUseWasmThreads ? Math.max(1, Math.min(2, hwThreads - 1)) : 1;
 
   ortAll.env.wasm.wasmPaths = {
     wasm: `${ortPath}ort-wasm-simd-threaded.jsep.wasm`,

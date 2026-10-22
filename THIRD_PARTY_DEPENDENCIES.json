@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-04",
+  "reviewedAt": "2026-10-22",
   "packages": [
     {
       "name": "@floating-ui/core",
@@ -20,6 +20,16 @@
     {
       "name": "@floating-ui/utils",
       "version": "0.2.12",
+      "license": "MIT"
+    },
+    {
+      "name": "@napi-rs/canvas",
+      "version": "1.0.13",
+      "license": "MIT"
+    },
+    {
+      "name": "@napi-rs/canvas-win32-x64-msvc",
+      "version": "1.0.13",
       "license": "MIT"
     },
     {
@@ -538,6 +548,11 @@
       "license": "MIT"
     },
     {
+      "name": "pdfjs-dist",
+      "version": "6.4.299",
+      "license": "Apache-2.0"
+    },
+    {
       "name": "platform",
       "version": "1.3.6",
       "license": "MIT"
@@ -656,11 +671,6 @@
       "name": "tr46",
       "version": "0.0.3",
       "license": "MIT"
-    },
-    {
-      "name": "tslib",
-      "version": "2.8.1",
-      "license": "0BSD"
     },
     {
       "name": "tw-animate-css",

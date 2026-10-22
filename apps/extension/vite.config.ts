@@ -1,5 +1,5 @@
 import { resolve } from 'node:path';
-import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -44,6 +44,14 @@ function extensionReleaseAssetsPlugin(
     name: 'extension-release-assets',
     apply: 'build',
     closeBundle() {
+      const pdfjsRoot = resolve(repoRoot, 'node_modules/pdfjs-dist');
+      const pdfjsDist = resolve(extensionDist, 'pdfjs');
+      mkdirSync(pdfjsDist, { recursive: true });
+      cpSync(resolve(pdfjsRoot, 'build/pdf.worker.min.mjs'), resolve(pdfjsDist, 'pdf.worker.min.mjs'));
+      cpSync(resolve(pdfjsRoot, 'LICENSE'), resolve(pdfjsDist, 'LICENSE'));
+      for (const directory of ['cmaps', 'standard_fonts', 'wasm', 'iccs']) {
+        cpSync(resolve(pdfjsRoot, directory), resolve(pdfjsDist, directory), { recursive: true });
+      }
       writeFileSync(
         resolve(extensionDist, 'manifest.json'),
         `${JSON.stringify(createExtensionManifest(target, extensionPackage.version), null, 2)}\n`,
@@ -160,6 +168,7 @@ export default defineConfig(({ mode }): UserConfig => {
       rollupOptions: {
         input: {
           popup: resolve(extensionRoot, 'popup.html'),
+          pdf: resolve(extensionRoot, 'pdf.html'),
           'background-chromium': resolve(extensionRoot, 'src/background/chromium.ts'),
           'background-firefox': resolve(extensionRoot, 'background-firefox.html'),
           offscreen: resolve(extensionRoot, 'offscreen.html'),

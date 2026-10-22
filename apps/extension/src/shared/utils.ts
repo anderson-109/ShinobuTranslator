@@ -16,6 +16,7 @@ const pipelineStageLabels: Readonly<Record<string, string>> = {
 };
 
 function pipelineFailureMessage(error: unknown): string | undefined {
+  if (error && typeof error === 'object' && 'failure' in error && error.failure && typeof error.failure === 'object') error = error.failure;
   if (!error || typeof error !== 'object' || !('messageKey' in error)) return undefined;
   const messageKey = (error as { messageKey?: unknown }).messageKey;
   if (typeof messageKey !== 'string') {

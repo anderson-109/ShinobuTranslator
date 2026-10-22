@@ -961,6 +961,14 @@ export function App() {
         </header>
 
         <div className="popup-body">
+          <Button asChild variant="outline">
+            <a href={getExtensionRuntime()?.getURL('pdf.html')} target="_blank" rel="noopener noreferrer">
+              開啟 PDF 翻譯閱讀器
+            </a>
+          </Button>
+          <Button asChild variant="outline">
+            <a href={`${getExtensionRuntime()?.getURL('pdf.html')}#jobs=1`} target="_blank" rel="noopener noreferrer">Batch 工作清單</a>
+          </Button>
           {loading ? (
             <p className="loading-text">正在读取配置…</p>
           ) : (
@@ -1062,11 +1070,13 @@ export function App() {
                               options={[
                                 { value: 'paddleocr_v6_medium', label: 'PaddleOCR（本机）' },
                                 { value: 'openai', label: 'OpenAI OCR（API Key）' },
+                                { value: 'yomitoku', label: 'YomiToku（本機服務）' },
                               ]}
                               value={settings.ocrEngine}
                               onChange={(value) => updateField('ocrEngine', value as ExtensionSettingsProjection['ocrEngine'])}
                               disabled={loading}
                             />
+                            {settings.ocrEngine === 'yomitoku' ? <p className="field-hint">先執行「啟動YomiToku.cmd」。OCR 在本機 127.0.0.1:8766 處理；Batch 模式直接使用 OpenAI 圖片辨識與翻譯。</p> : null}
                             {settings.ocrEngine === 'openai' ? (
                               <p>请选择 LLM → OpenAI → API Key，填入密钥并选择支持图片的模型（例如 gpt-4.1-mini）。OCR 会发送文字区域图片并产生 API 费用。</p>
                             ) : null}

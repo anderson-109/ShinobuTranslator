@@ -192,6 +192,10 @@ describe('built-in LLM thinking capabilities', () => {
         levels: ['low', 'medium', 'high', 'xhigh', 'max'],
         defaultLevel: 'low',
       },
+      'openai/gpt-4o-mini': { levels: ['off'], defaultLevel: 'off' },
+      'openai/gpt-5-mini': { levels: ['low', 'medium', 'high'], defaultLevel: 'low' },
+      'openai/gpt-4.1-mini': { levels: ['off'], defaultLevel: 'off' },
+      'openai/gpt-4.1': { levels: ['off'], defaultLevel: 'off' },
       'openai/gpt-6.1-sol': {
         levels: ['low', 'medium', 'high', 'xhigh', 'max'],
         defaultLevel: 'low',

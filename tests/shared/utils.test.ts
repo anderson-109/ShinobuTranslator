@@ -17,6 +17,9 @@ describe("toErrorMessage", () => {
     expect(toErrorMessage({
       messageKey: "pipeline.failure.runtime",
     })).toBe("本地图片处理失败");
+    expect(toErrorMessage(Object.assign(new Error('pipeline.failure.stage'), {
+      failure: { messageKey: 'pipeline.failure.stage', stage: 'ocr', code: 'PIPELINE_STAGE_FAILED', scope: 'image', retryable: false },
+    }))).toBe('OCR 识别失败');
   });
 
   it("returns string itself for string input", () => {

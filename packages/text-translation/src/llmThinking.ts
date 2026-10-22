@@ -156,6 +156,10 @@ export const llmThinkingCapabilityRegistry: Record<string, LlmThinkingCapability
     levels: ['low', 'medium', 'high', 'xhigh', 'max'],
     defaultLevel: 'low',
   },
+  'openai/gpt-4o-mini': { levels: ['off'], defaultLevel: 'off' },
+  'openai/gpt-5-mini': { levels: ['low', 'medium', 'high'], defaultLevel: 'low' },
+  'openai/gpt-4.1-mini': { levels: ['off'], defaultLevel: 'off' },
+  'openai/gpt-4.1': { levels: ['off'], defaultLevel: 'off' },
   'openai/gpt-6.1-sol': {
     levels: ['low', 'medium', 'high', 'xhigh', 'max'],
     defaultLevel: 'low',
@@ -298,6 +302,8 @@ export function adaptLlmThinkingChatCompletionRequest(
   }
 
   if (context.provider === 'openai') {
+    // GPT-4o/4.1 are non-reasoning models; even "none" is not an accepted field.
+    if (/^gpt-4(?:o|\.1)(?:-|$)/u.test(context.model)) return request;
     if (level === 'on') {
       throw new Error(`OpenAI 模型 ${context.model} 的思考档位定义无效`);
     }

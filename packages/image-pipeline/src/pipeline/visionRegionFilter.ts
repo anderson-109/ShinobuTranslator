@@ -23,15 +23,31 @@ function round(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-export function describeVisionRegions(
+async function encodeCrop(crop: PipelineCanvas): Promise<string> {
+  let blob: Blob;
+  if (crop.convertToBlob) blob = await crop.convertToBlob({ type: 'image/jpeg', quality: .9 });
+  else if (crop.toBlob) blob = await new Promise<Blob>((resolve, reject) => crop.toBlob!(
+    (value) => value ? resolve(value) : reject(new Error('無法編碼 OCR 圖片')), 'image/jpeg',
+  ));
+  else return crop.toDataURL('image/jpeg');
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = '';
+  for (let offset = 0; offset < bytes.length; offset += 32768) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 32768));
+  }
+  return `data:${blob.type || 'image/jpeg'};base64,${btoa(binary)}`;
+}
+
+export async function describeVisionRegions(
   regions: TextRegion[],
   detected: TextRegion[],
   original: PipelineCanvas,
   platform: PlatformProvider,
-): VisionRegion[] {
+): Promise<VisionRegion[]> {
   const imageWidth = original.width;
   const imageHeight = original.height;
-  return regions.map((region) => {
+  const described: VisionRegion[] = [];
+  for (const region of regions) {
     const matchingDetections = detected.filter((candidate) => {
       const overlapWidth = Math.max(0, Math.min(region.box.x + region.box.width, candidate.box.x + candidate.box.width) - Math.max(region.box.x, candidate.box.x));
       const overlapHeight = Math.max(0, Math.min(region.box.y + region.box.height, candidate.box.y + candidate.box.height) - Math.max(region.box.y, candidate.box.y));
@@ -55,7 +71,7 @@ export function describeVisionRegions(
       const context = crop.getContext('2d');
       if (!context) throw new Error('无法裁剪视觉过滤区域');
       context.drawImage(original, left, top, cropWidth, cropHeight, 0, 0, crop.width, crop.height);
-      return {
+      described.push({
         id: region.id,
         text: region.sourceText,
         ocrConfidence: region.prob === undefined ? null : round(region.prob),
@@ -70,10 +86,11 @@ export function describeVisionRegions(
           width: round(width / imageWidth * 100),
           height: round(height / imageHeight * 100),
         },
-        imageDataUrl: crop.toDataURL('image/jpeg'),
-      };
+        imageDataUrl: await encodeCrop(crop),
+      });
     } finally {
       crop.dispose?.();
     }
-  });
+  }
+  return described;
 }

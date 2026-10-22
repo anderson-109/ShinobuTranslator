@@ -11,6 +11,7 @@ import type {
 } from '@shinobu/image-pipeline/benchmark';
 import type { ImageTranslationExecutionRequest } from './translation/imageTranslationExecution';
 import type { LayerEditingState } from './editing/layerEditingState';
+import type { PipelineRecord } from '@shinobu/image-pipeline';
 
 export interface ImageTarget {
   element: HTMLImageElement;
@@ -93,6 +94,9 @@ export interface ReadingModeBarUi {
  * hide signed manifests, decoding and Canvas projection behind the same seam.
  */
 export interface ReadingModeAdapter {
+  getReadingConcurrency?(): number;
+  getCachedReadingPage?(page: ReadingPageReference): Promise<Blob | null>;
+  rememberReadingPage?(page: ReadingPageReference, image: Blob, record?: PipelineRecord): void;
   getReadingContextKey(): string | null;
   discoverReadingPages(signal?: AbortSignal): Promise<ReadingPageDiscovery>;
   getVisiblePages(): readonly ReadingPageReference[];
@@ -115,6 +119,9 @@ export interface ReadingModeAdapter {
 }
 
 export interface SiteAdapter {
+  getReadingConcurrency?(): number;
+  getCachedReadingPage?(page: ReadingPageReference): Promise<Blob | null>;
+  rememberReadingPage?(page: ReadingPageReference, image: Blob, record?: PipelineRecord): void;
   match(): boolean;
   findImages(): ImageTarget[];
   getTranslationContext?(target: ImageTarget): ImageTranslationContextResolution;

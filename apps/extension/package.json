@@ -31,6 +31,7 @@
     "comlink": "^4.4.2",
     "lucide-react": "^1.51.0",
     "onnxruntime-web": "^1.27.0",
+    "pdfjs-dist": "6.4.299",
     "prosemirror-commands": "^1.7.2",
     "prosemirror-history": "^1.5.1",
     "prosemirror-keymap": "^1.2.3",

@@ -3,6 +3,8 @@ export type ExtensionTarget = 'chromium' | 'firefox';
 type Manifest = Record<string, unknown>;
 
 const COMMON_PERMISSIONS = [
+  'alarms',
+  'notifications',
   'storage',
   'contextMenus',
   'declarativeNetRequest',

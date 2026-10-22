@@ -121,6 +121,23 @@ function createHarness(diagnostics?: DiagnosticLogEmitter): {
 }
 
 describe('PipelineHostBroker', () => {
+  it('admits two jobs only when the host advertises capacity and refills the freed slot', async () => {
+    const { broker, host } = createHarness();
+    const client = new FakePort(LOCAL_PIPELINE_CLIENT_PORT);
+    broker.handlePort(client);
+    client.emitMessage({ type: 'prepare', jobId: 'one' });
+    await vi.waitFor(() => expect(client.sent).toContainEqual({ type: 'ready', jobId: 'one' }));
+    host.emitMessage({ type: 'host-ready', hostInstanceId: HOST_INSTANCE_ID, concurrency: 2 });
+    for (const id of ['two', 'three']) client.emitMessage({ type: 'prepare', jobId: id });
+    await vi.waitFor(() => expect(client.sent).toContainEqual({ type: 'ready', jobId: 'three' }));
+    for (const id of ['one', 'two', 'three']) transferJob(client, id);
+    expect(host.sent.filter((m: any) => m.type === 'prepare').map((m: any) => m.jobId)).toEqual(['one', 'two']);
+    host.emitMessage({ type: 'error', jobId: 'two', error: { name: 'Error', message: 'test', code: 'PIPELINE_RUNTIME_FAILED' } });
+    await vi.waitFor(() => expect(host.sent).toContainEqual(expect.objectContaining({ type: 'prepare', jobId: 'three' })));
+    client.disconnect();
+    expect(host.sent).toContainEqual(expect.objectContaining({ type: 'cancel', jobId: 'one' }));
+    expect(host.sent).toContainEqual(expect.objectContaining({ type: 'cancel', jobId: 'three' }));
+  });
   afterEach(() => vi.unstubAllGlobals());
 
   it('negotiates real Blob input at the broker before host admission', async () => {

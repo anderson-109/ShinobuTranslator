@@ -128,6 +128,21 @@ export class TranslatorCore {
     await this.screenshotController.startScreenshotTranslate();
   }
 
+  cancelReadingTranslation(): void {
+    this.readingModeController.cancel();
+  }
+
+  restoreReadingPageTranslation(key: string, originalUrl: string, image: Blob): string | undefined {
+    const state = this.stateStore.ensure(key, originalUrl);
+    if (state.translatedUrl || state.status === 'running') return state.translatedUrl;
+    state.translatedUrl = URL.createObjectURL(image);
+    state.status = 'translated';
+    state.mode = 'translated';
+    this.readingModeController.showTranslations();
+    this.scheduleSync();
+    return state.translatedUrl;
+  }
+
   async translateImageInFloatingOverlay(
     originalUrl: string,
     imageElement: HTMLImageElement,

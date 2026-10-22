@@ -42,7 +42,7 @@ function createDefaultProviderProfile(provider: LlmProvider): LlmProviderProfile
   if (isBuiltInProvider(provider)) {
     return {
       apiKey: '',
-      authMode: provider === 'openai' ? 'openai_oauth' : provider === 'gemini' ? 'gemini_app' : 'api_key',
+      authMode: llmBuiltInProviderDefinitions[provider].defaultAuthMode,
       modelPreset: getDefaultModelPreset(provider),
       modelCustom: '',
       useCustomModel: false,
@@ -74,7 +74,7 @@ function createDefaultLlmProfiles(): Record<LlmProvider, LlmProviderProfile> {
   };
 }
 
-export type OcrEngine = 'paddleocr_v6_medium' | 'openai';
+export type OcrEngine = 'paddleocr_v6_medium' | 'openai' | 'yomitoku';
 export type ProcessMode = 'translate' | 'erase' | 'original';
 
 export const geminiAppModelOptions: Array<{ value: GeminiAppModel; label: string }> = [
@@ -188,7 +188,7 @@ function sanitizeBoolean(value: unknown, fallback: boolean): boolean {
 }
 
 function normalizeOcrEngine(value: unknown): OcrEngine {
-  return value === 'openai' ? 'openai' : 'paddleocr_v6_medium';
+  return value === 'openai' || value === 'yomitoku' ? value : 'paddleocr_v6_medium';
 }
 
 function normalizeProcessMode(value: unknown): ProcessMode {
@@ -541,6 +541,10 @@ export function validateSettings(settings: ExtensionSettings): string | null {
   const model = resolveLlmModel(settings);
   if (!model) {
     return 'LLM 模型不能为空';
+  }
+  if (settings.llmProvider === 'openai' && ['gpt-4o-mini', 'gpt-5-mini'].includes(model)
+    && settings.llmProfiles.openai.authMode !== 'api_key') {
+    return `${model} 請使用 OpenAI API Key 認證；請在翻譯設定中切換為 API Key 並填入金鑰。`;
   }
 
   const profile = settings.llmProfiles[settings.llmProvider];

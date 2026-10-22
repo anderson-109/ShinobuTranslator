@@ -1201,6 +1201,20 @@ export function injectStyles(): void {
       }
     }
 
+    /* Keep controls readable over both manga pages and dark site overlays. */
+    .mt-x-control, .mt-x-control.mt-x-liquid,
+    .mt-x-control:hover:not(:disabled), .mt-x-control:active:not(:disabled),
+    .mt-x-control.mt-x-liquid:hover:not(:disabled), .mt-x-control.mt-x-liquid:active:not(:disabled) {
+      background: #f9f7ff !important;
+      color: #30283f !important;
+      border: 1px solid #cfc5e1;
+      opacity: 1;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      box-shadow: 0 2px 8px #25143b24;
+    }
+    .mt-x-control:disabled:not([data-status='running']) { opacity: 1; color: #746d80 !important; }
+    .mt-x-control .mt-x-glass-material, .mt-x-control .mt-x-glass-overlay { display: none; }
   `;
   document.documentElement.appendChild(style);
 }

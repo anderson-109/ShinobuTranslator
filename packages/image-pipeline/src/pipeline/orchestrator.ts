@@ -19,6 +19,7 @@ import {
 } from './detect/precomputedDetection';
 import { runOcr } from "./ocr";
 import { runOpenAiOcr } from "./ocr/openai";
+import { runYomitokuOcr } from "./ocr/yomitoku";
 import { preparePaddleOcrRuntime, warmupPaddleOcrRuntime } from "./ocr/paddleocrProvider";
 import { prepareInpaintSource, runInpaint, type PreparedInpaintSource } from "./inpaint";
 import { drawTypeset } from "./typeset";
@@ -557,6 +558,7 @@ export async function runPipeline(
     if (!ocrRuntimeProbePromise) {
       ocrRuntimeProbePromise = config.ocrEngine === 'openai'
         ? Promise.resolve({ model: 'ocr', enabled: true, detail: 'OpenAI 视觉 OCR（API）' })
+        : config.ocrEngine === 'yomitoku' ? Promise.resolve({ model: 'ocr', enabled: true, detail: 'YomiToku（本機服務）' })
         : probeRuntime(modelRuntime, "ocr");
     }
     return ocrRuntimeProbePromise;
@@ -720,6 +722,7 @@ export async function runPipeline(
     }
     const ocrResult = config.ocrEngine === 'openai'
       ? await runOpenAiOcr(originalCanvas, latestRegions, config, platform, options.ocrTransport, signal)
+      : config.ocrEngine === 'yomitoku' ? await runYomitokuOcr(originalCanvas, latestRegions, platform, signal)
       : await runOcr(image, latestRegions, config.ocrEngine, platform, {
       compactActiveBatch: config.ocrCompactActiveBatch,
     }, modelRuntime);
@@ -800,7 +803,7 @@ export async function runPipeline(
   // be reclaimed before the remaining stages allocate render canvases.
   detectedBubbles = [];
 
-  if (config.ocrEngine === "openai" || (config.ocrPostFilter ?? "balanced") === "off") {
+  if (config.ocrEngine !== "paddleocr_v6_medium" || (config.ocrPostFilter ?? "balanced") === "off") {
     ocrPostFilterDebug = {
       mode: "off",
       ruleId: OCR_POST_FILTER_RULE_ID,
@@ -884,7 +887,7 @@ export async function runPipeline(
     const t0 = performance.now();
     try {
       if (!options.classifyVisionRegions) throw new Error('未配置大模型误识别过滤器');
-      const described = describeVisionRegions(latestRegions, stageRegions.detected, originalCanvas, platform);
+      const described = await describeVisionRegions(latestRegions, stageRegions.detected, originalCanvas, platform);
       const filteredIds = await options.classifyVisionRegions(described, signal);
       throwIfCancelled(signal);
       const validIds = new Set(latestRegions.map((region) => region.id));

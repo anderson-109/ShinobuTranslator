@@ -86,6 +86,7 @@ describe('ExtensionControlModule', () => {
         openai: {
           ...defaultExtensionSettings.llmProfiles.openai,
           authMode: 'openai_oauth',
+          modelPreset: 'gpt-6-astra',
         },
       },
     };
@@ -105,6 +106,7 @@ describe('ExtensionControlModule', () => {
         openai: {
           ...defaultExtensionSettings.llmProfiles.openai,
           authMode: 'openai_oauth',
+          modelPreset: 'gpt-6-astra',
         },
       },
     };

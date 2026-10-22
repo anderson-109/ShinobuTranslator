@@ -11,6 +11,7 @@ import {
 import { createReadingModeBarUi } from '../ui';
 import { destroyTranslationButton, updateTranslationButton } from '../ui/translationButton';
 import { resolveImageReferrerPolicy } from '../utils';
+import { toErrorMessage } from '../../../shared/utils';
 import { PhotoStateStore } from '../state/photoStateStore';
 import { createInitialPhotoState } from '../state/photoStateStore';
 import {
@@ -35,7 +36,7 @@ type ReadingOperation =
 
 type PageTranslationOutcome =
   | { status: 'translated' | 'skipped' }
-  | { status: 'image-failed' | 'runtime-failed' }
+  | { status: 'image-failed' | 'runtime-failed'; message?: string }
   | { status: 'cancelled' };
 
 function discoveryErrorText(discovery: ReadingPageDiscovery | undefined): string {
@@ -71,6 +72,20 @@ export class ReadingModeController {
     private readonly cancelCoreSync: () => void,
     private readonly createBar: () => ReadingModeBarUi = createReadingModeBarUi,
   ) {}
+
+  cancel(): void {
+    this.autoTranslate = false;
+    const activity = this.activeActivity;
+    this.activeActivity = null;
+    activity?.end('使用者已停止翻譯');
+    this.operation = { kind: 'idle' };
+    this.errorText = '已停止翻譯；已完成的頁面會保留。';
+    this.renderReadingModeBar();
+  }
+
+  showTranslations(): void {
+    this.globalTranslateMode = 'translated';
+  }
 
   setAutoTranslate(enabled: boolean): void {
     if (this.autoTranslate === enabled) return;
@@ -250,6 +265,7 @@ export class ReadingModeController {
           if (automatic && (this.suspended || !this.autoTranslate)) break;
           const page = visiblePages[i];
           const updateProgress = (stageText: string): void => {
+            if (this.activeActivity !== activity || activity.signal.aborted) return;
             this.currentProgressText = `${i + 1}/${total} ${stageText}`;
             const button = this.readingBarUi?.translateCurrentBtn;
             if (button) updateTranslationButton(button, this.currentProgressText, undefined, true);
@@ -257,7 +273,8 @@ export class ReadingModeController {
           updateProgress('准备中');
 
           const outcome = await this.translatePage(activity, page, updateProgress);
-          if (outcome.status === 'cancelled' || outcome.status === 'runtime-failed') {
+          if (this.activeActivity !== activity) return;
+          if (outcome.status !== 'translated' && outcome.status !== 'skipped') {
             this.operation = { kind: 'idle' };
             this.renderReadingModeBar();
             return;
@@ -338,6 +355,10 @@ export class ReadingModeController {
           const button = this.readingBarUi?.translateAllBtn;
           if (button) updateTranslationButton(button, this.allProgressText, undefined, true);
           logicalPagePlan = await this.adapter.planReadingLogicalPages(urls, activity.signal);
+          if (this.activeActivity !== activity || activity.signal.aborted) {
+            this.finishActivity(activity);
+            return;
+          }
           this.assertLogicalPagePlan(urls, logicalPagePlan);
         } catch (error) {
           if (activity.signal.aborted) {
@@ -345,7 +366,7 @@ export class ReadingModeController {
             return;
           }
           this.operation = { kind: 'idle' };
-          this.errorText = error instanceof Error ? error.message : String(error);
+          this.errorText = toErrorMessage(error);
           this.renderReadingModeBar();
           this.finishActivity(activity);
           return;
@@ -361,38 +382,47 @@ export class ReadingModeController {
         const pendingUrls = logicalPagePlan.pages.filter((page) => page.members.some(
           (member) => !this.stateStore.get(member.key)?.translatedUrl,
         ));
-        const imageFailures: Array<{ pageIndex: number }> = [];
-        for (const page of pendingUrls) {
+        const imageFailures: Array<{ pageIndex: number; message: string }> = [];
+        const concurrency = this.adapter.getReadingConcurrency?.() === 2 ? 2 : 1;
+        for (let offset = 0; offset < pendingUrls.length; offset += concurrency) {
           if (this.operation.kind !== 'translating-all') break;
           if (!await this.waitUntilResumed(activity)) return;
-          this.operation = { kind: 'translating-all', total, pageIndex: page.pageIndex };
-          const updateProgress = (stageText: string): void => {
-            this.allProgressText = `${page.pageIndex + 1}/${total} ${stageText}`;
-            const button = this.readingBarUi?.translateAllBtn;
-            if (button) updateTranslationButton(button, this.allProgressText, undefined, true);
-          };
-          updateProgress('准备中');
+          const wave = pendingUrls.slice(offset, offset + concurrency);
+          const outcomes = await Promise.all(wave.map(async page => {
+            this.operation = { kind: 'translating-all', total, pageIndex: page.pageIndex };
+            const updateProgress = (stageText: string): void => {
+              if (this.activeActivity !== activity || activity.signal.aborted) return;
+              this.allProgressText = concurrency === 1 ? `${page.pageIndex + 1}/${total} ${stageText}`
+                : `已完成 ${this.countCompletedPages(urls)}/${total} · 第 ${page.pageIndex + 1} 頁 ${stageText}`;
+              const button = this.readingBarUi?.translateAllBtn;
+              if (button) updateTranslationButton(button, this.allProgressText, undefined, true);
+            };
+            updateProgress('准备中');
 
-          const outcome = await this.translatePage(activity, page, updateProgress);
-          if (outcome.status === 'cancelled') {
-            this.operation = { kind: 'idle' };
-            this.renderReadingModeBar();
-            return;
+            return { page, outcome: await this.translatePage(activity, page, updateProgress) };
+          }));
+          if (this.activeActivity !== activity) return;
+          for (const { page, outcome } of outcomes) {
+            if (outcome.status === 'cancelled') {
+              this.operation = { kind: 'idle' };
+              this.renderReadingModeBar();
+              return;
+            }
+            if (outcome.status === 'runtime-failed') {
+              const completed = this.countCompletedPages(urls);
+              this.operation = { kind: 'idle' };
+              this.globalTranslateMode = completed > 0 ? 'translated' : this.globalTranslateMode;
+              this.errorText = `已完成 ${completed}/${total}：${outcome.message || this.errorText || '流水线运行环境不可用，请检查设置后重试'}`;
+              this.renderReadingModeBar();
+              return;
+            }
+            if (outcome.status === 'image-failed') {
+              imageFailures.push({ pageIndex: page.pageIndex, message: outcome.message ?? this.errorText });
+              continue;
+            }
+            if (this.operation.kind !== 'translating-all') break;
+            this.scheduleCoreSync();
           }
-          if (outcome.status === 'runtime-failed') {
-            const completed = this.countCompletedPages(urls);
-            this.operation = { kind: 'idle' };
-            this.globalTranslateMode = completed > 0 ? 'translated' : this.globalTranslateMode;
-            this.errorText = `已完成 ${completed}/${total}：流水线运行环境不可用，请检查设置后重试`;
-            this.renderReadingModeBar();
-            return;
-          }
-          if (outcome.status === 'image-failed') {
-            imageFailures.push({ pageIndex: page.pageIndex });
-            continue;
-          }
-          if (this.operation.kind !== 'translating-all') break;
-          this.scheduleCoreSync();
         }
 
         if (this.operation.kind !== 'translating-all') return;
@@ -401,7 +431,7 @@ export class ReadingModeController {
           const failedPages = imageFailures.map(({ pageIndex }) => pageIndex + 1).join('、');
           this.operation = { kind: 'idle' };
           this.globalTranslateMode = completed > 0 ? 'translated' : this.globalTranslateMode;
-          this.errorText = `已完成 ${completed}/${total}；第 ${failedPages} 页失败：图片翻译失败，请重试`;
+          this.errorText = `已完成 ${completed}/${total}；第 ${failedPages} 页失败：${imageFailures.slice(0, 3).map((failure) => failure.message).join('；') || '图片翻译失败，请重试'}`;
           this.renderReadingModeBar();
           return;
         }
@@ -425,12 +455,25 @@ export class ReadingModeController {
       onProgress: (stageText: string) => void,
     ): Promise<PageTranslationOutcome> {
       const members = 'members' in page ? page.members : [page];
+      if (this.activeActivity !== activity || activity.signal.aborted) return { status: 'cancelled' };
       const primary = members[0];
       const state = this.stateStore.ensure(primary.key, primary.originalUrl);
 
       // Skip if already translated
       if (members.every((member) => this.stateStore.get(member.key)?.translatedUrl)) {
         return { status: 'skipped' };
+      }
+
+      if (members.length === 1 && this.adapter.getCachedReadingPage) {
+        const cached = await this.adapter.getCachedReadingPage(primary).catch(() => null);
+        if (activity.signal.aborted) return { status: 'cancelled' };
+        if (cached) {
+          state.translatedUrl = URL.createObjectURL(cached);
+          state.status = 'translated';
+          state.mode = 'translated';
+          this.adapter.applyImageByKey(primary.key, state.translatedUrl);
+          return { status: 'skipped' };
+        }
       }
 
       const releaseStates = members.map((member) => this.stateStore.protect(member.key));
@@ -449,11 +492,16 @@ export class ReadingModeController {
       } catch (error) {
         for (const release of releaseStates) release();
         if (!activity.signal.aborted) applyImageTranslationFailure(state, error);
+        if (!activity.signal.aborted) this.errorText = `第 ${(primary.pageIndex ?? 0) + 1} 頁：${toErrorMessage(error)}`;
         return activity.signal.aborted
           ? { status: 'cancelled' }
-          : { status: 'image-failed' };
+          : { status: 'image-failed', message: this.errorText };
       }
       const grouped = members.length > 1;
+      if (this.activeActivity !== activity || activity.signal.aborted) {
+        for (const release of releaseStates) release();
+        return { status: 'cancelled' };
+      }
       const projectionState = grouped
         ? createInitialPhotoState(page.originalUrl)
         : state;
@@ -462,7 +510,7 @@ export class ReadingModeController {
         executionModule: activity,
         request: {
           ...request,
-          allowedKinds: ['local-pipeline'],
+          allowedKinds: grouped ? ['local-pipeline'] : request.allowedKinds ?? ['local-pipeline'],
         },
         state: projectionState,
         includeElapsedText: false,
@@ -471,6 +519,8 @@ export class ReadingModeController {
       });
       try {
         const outcome = await task.result;
+        if (!grouped) this.adapter.rememberReadingPage?.(primary, outcome.execution.image,
+          outcome.execution.kind === 'local-pipeline' ? outcome.execution.record : undefined);
         if (grouped) {
           if (!this.adapter.splitReadingLogicalPageResult) {
             throw new Error('阅读器未提供逻辑页结果裁切能力');
@@ -502,8 +552,10 @@ export class ReadingModeController {
         return { status: 'translated' };
       } catch (error) {
         if (activity.signal.aborted) return { status: 'cancelled' };
+        this.errorText = `第 ${(primary.pageIndex ?? 0) + 1} 頁翻譯失敗：${toErrorMessage(error)}`;
         return {
           status: isRuntimeImageTranslationFailure(error) ? 'runtime-failed' : 'image-failed',
+          message: this.errorText,
         };
       } finally {
         if (grouped) {

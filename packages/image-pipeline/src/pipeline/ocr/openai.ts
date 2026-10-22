@@ -23,7 +23,7 @@ export async function runOpenAiOcr(
   for (let offset = 0; offset < regions.length; offset += 8) {
     signal?.throwIfAborted();
     const batch = regions.slice(offset, offset + 8);
-    const crops = describeVisionRegions(batch, batch, image, platform);
+    const crops = await describeVisionRegions(batch, batch, image, platform);
     const response = await transport.requestChatCompletion({
       body: {
         model: config.llmModel,

@@ -130,7 +130,7 @@ export function ensureOrtEnv(): void {
       : 1;
   const canUseWasmThreads =
     typeof window !== "undefined" && window.isSecureContext && window.crossOriginIsolated;
-  const wasmThreads = canUseWasmThreads ? Math.max(1, Math.min(8, hwThreads)) : 1;
+  const wasmThreads = canUseWasmThreads ? Math.max(1, Math.min(2, hwThreads - 1)) : 1;
 
   if (!configuredOrtPath) {
     throw new Error('必须显式配置 ORT WASM 路径');

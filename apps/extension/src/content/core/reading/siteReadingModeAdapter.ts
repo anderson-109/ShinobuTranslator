@@ -3,6 +3,9 @@ import type { ReadingModeAdapter, SiteAdapter } from '../types';
 /** Bridges URL-oriented site adapters into the strict shared reading-mode contract. */
 export function createSiteReadingModeAdapter(adapter: SiteAdapter): ReadingModeAdapter {
   return {
+    getReadingConcurrency: () => adapter.getReadingConcurrency?.() ?? 1,
+    ...(adapter.getCachedReadingPage ? { getCachedReadingPage: adapter.getCachedReadingPage.bind(adapter) } : {}),
+    ...(adapter.rememberReadingPage ? { rememberReadingPage: adapter.rememberReadingPage.bind(adapter) } : {}),
     getReadingContextKey: () => adapter.getReadingContextKey?.() ?? null,
     discoverReadingPages: (signal) => adapter.discoverReadingPages?.(signal)
       ?? Promise.resolve({ status: 'incomplete', reason: 'metadata-unavailable' }),

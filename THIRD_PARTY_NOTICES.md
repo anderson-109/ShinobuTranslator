@@ -1,5 +1,11 @@
 # 第三方组件与模型声明
 
+## PDF 閱讀器（本機修改版）
+
+- PDF.js (`pdfjs-dist` 6.4.299)，來源：https://github.com/mozilla/pdf.js
+- 授權：Apache-2.0。worker、CMap、標準字型、ICC 與 WASM 資源均隨擴充功能本地打包。
+- PDF.js 授權文字隨建置輸出保留於 `pdfjs/LICENSE`，字型與其他資源目錄保留原附帶授權檔。
+
 本文档记录项目中第三方模型与主要浏览器运行时的精确来源、许可证和当前发布状态。资产指纹与
 `packages/model-manifest/manifest.json`、来源记录
 `packages/model-manifest/publication-policy.json` 必须一致。
@@ -123,3 +129,7 @@ LICENSE/NOTICE。
 
 - 本文件仅用于工程合规记录，不构成法律意见。许可证冲突或权利范围不明确时，不以模型页
   标签代替权利人授权；是否公开分发由维护者结合上游材料自行决定。
+
+## 12) Optional YomiToku local service
+
+The optional Python bridge installs YomiToku 0.15.1 from https://github.com/kotaro-kinoshita/yomitoku, licensed under Creative Commons Attribution-NonCommercial-ShareAlike 4.0 (CC BY-NC-SA 4.0). YomiToku and its downloaded models are not relicensed under this project's MIT license and are not bundled into the extension archives. See the upstream license and model notices for their terms. PyTorch and other Python dependencies retain their respective licenses.

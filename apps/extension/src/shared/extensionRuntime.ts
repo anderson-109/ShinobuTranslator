@@ -76,6 +76,14 @@ export type ExtensionPermissionRequest = {
 };
 
 export type ExtensionBrowserApi = {
+  notifications?: {
+    create: (id: string, options: { type: 'basic'; iconUrl: string; title: string; message: string }, callback: (id: string) => void) => void;
+    onClicked: { addListener: (listener: (id: string) => void) => void };
+  };
+  alarms?: {
+    create: (name: string, info: { periodInMinutes: number }) => void | Promise<void>;
+    onAlarm: { addListener: (listener: (alarm: { name: string }) => void) => void };
+  };
   runtime?: {
     id?: string;
     getManifest?: () => { version?: string; manifest_version?: number };
@@ -151,6 +159,7 @@ export type ExtensionBrowserApi = {
     };
   };
   tabs?: {
+    update?: (tabId: number, properties: { url: string }) => Promise<unknown>;
     query?: (
       queryInfo: { active?: boolean; windowId?: number },
       callback: (tabs: Array<{ id?: number }>) => void,
@@ -235,7 +244,16 @@ type ExtensionNamespace = typeof globalThis & {
   chrome?: ExtensionBrowserApi;
 };
 
+let workerRuntimeApi: ExtensionBrowserApi | null = null;
+
+/** Dedicated Workers relay privileged calls through their owning extension document. */
+export function installExtensionWorkerRuntime(api: ExtensionBrowserApi): void {
+  if (typeof document !== 'undefined') throw new Error('Worker runtime must not replace the page runtime');
+  workerRuntimeApi = api;
+}
+
 function resolveExtensionApi(): ExtensionBrowserApi | null {
+  if (workerRuntimeApi) return workerRuntimeApi;
   const scope = globalThis as ExtensionNamespace;
   // Firefox exposes the callback-compatible `chrome` namespace as well. Prefer it
   // so legacy APIs such as storage/cookies use one contract in both targets.
@@ -243,7 +261,7 @@ function resolveExtensionApi(): ExtensionBrowserApi | null {
 }
 
 function usesPromiseNamespace(api: ExtensionBrowserApi): boolean {
-  return (globalThis as ExtensionNamespace).browser === api;
+  return api === workerRuntimeApi || (globalThis as ExtensionNamespace).browser === api;
 }
 
 export interface ExtensionRuntime {

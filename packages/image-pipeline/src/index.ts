@@ -12,7 +12,7 @@ import type {
   TextTranslationTransport,
   TranslationReferenceContext,
 } from '@shinobu/text-translation';
-import { isLlmProvider } from '@shinobu/text-translation';
+import { isLlmProvider, isTranslationReferenceContext } from '@shinobu/text-translation';
 import type { ModelRuntime } from '@shinobu/model-runtime';
 import type { DiagnosticLogObserver } from '@shinobu/diagnostics';
 import type { PipelineCanvas, PlatformProvider } from './runtime/platform';
@@ -110,7 +110,7 @@ export type PipelineConfig = {
   typesetDebug: boolean;
   eraseDebug: boolean;
   collectDebugLog: boolean;
-  ocrEngine: 'paddleocr_v6_medium' | 'openai';
+  ocrEngine: 'paddleocr_v6_medium' | 'openai' | 'yomitoku';
   ocrCompactActiveBatch?: boolean;
   ocrPostFilter?: 'off' | 'balanced';
   llmOcrFilter?: boolean;
@@ -439,24 +439,12 @@ function validateConfig(config: unknown): config is PipelineConfig {
     )
     && (
       config.translationContext === undefined
-      || (
-        isRecord(config.translationContext)
-        && hasOnlyKeys(
-          config.translationContext,
-          new Set(['source', 'currentTweetText', 'quotedTweetText']),
-        )
-        && config.translationContext.source === 'x_tweet'
-        && typeof config.translationContext.currentTweetText === 'string'
-        && (
-          config.translationContext.quotedTweetText === undefined
-          || typeof config.translationContext.quotedTweetText === 'string'
-        )
-      )
+      || isTranslationReferenceContext(config.translationContext)
     )
     && typeof config.typesetDebug === 'boolean'
     && typeof config.eraseDebug === 'boolean'
     && typeof config.collectDebugLog === 'boolean'
-    && (config.ocrEngine === 'paddleocr_v6_medium' || config.ocrEngine === 'openai')
+    && (config.ocrEngine === 'paddleocr_v6_medium' || config.ocrEngine === 'openai' || config.ocrEngine === 'yomitoku')
     && (
       config.ocrCompactActiveBatch === undefined
       || typeof config.ocrCompactActiveBatch === 'boolean'

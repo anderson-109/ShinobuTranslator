@@ -25,6 +25,7 @@ __pycache__/
 *.log
 
 # Temp directories and files
+.build-tools/
 %TEMP%/
 .tmp/
 tmp/

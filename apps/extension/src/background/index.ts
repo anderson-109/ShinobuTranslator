@@ -30,6 +30,9 @@ import { createImageDownloader } from './images/imageDownloader';
 import { createPageImageCache } from './images/pageImageCache';
 import { createReaderResourceFetcher } from './readers/readerResourceFetcher';
 import { registerMenusAndCommands } from './menus/registerMenus';
+import { registerPdfNavigation } from './pdf/registerPdfNavigation';
+import { registerPdfBatchService } from './pdf/pdfBatchService';
+import { applyAndersonDefaultModel } from './settings/andersonDefaultModel';
 import {
   getOpenAiOAuthStatus,
   handleOpenAiOAuthCallbackUrl,
@@ -168,6 +171,7 @@ export function initializeBackground(lifecycle: PipelineHostLifecycle): void {
     return;
   }
   initialized = true;
+  registerPdfBatchService(chromeApi);
 
   pipelineHostBroker = registerPipelineHostBroker(
     chromeApi,
@@ -250,4 +254,9 @@ export function initializeBackground(lifecycle: PipelineHostLifecycle): void {
     .catch(() => undefined);
 
   registerMenusAndCommands();
+  registerPdfNavigation();
+  void applyAndersonDefaultModel(settingsRepository).then((changed) => {
+    if (changed) return extensionControl.refreshProviderAccess();
+    return undefined;
+  }).catch(() => undefined);
 }
