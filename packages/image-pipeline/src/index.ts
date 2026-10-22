@@ -97,6 +97,7 @@ export const PIPELINE_RECORD_SCHEMA_VERSION = 2 as const;
  * host resources deliberately do not belong to this value.
  */
 export type PipelineConfig = {
+  localTextOnly?: boolean;
   sourceLang: string;
   targetLang: string;
   translator: 'google_web' | 'llm';

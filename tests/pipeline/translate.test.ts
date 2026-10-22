@@ -125,6 +125,25 @@ afterEach(() => {
 });
 
 describe('runTranslate', () => {
+  it('sends one text request with context for the whole page in economy mode', async () => {
+    const sent = installRuntimeChatSequence([JSON.stringify({ regions: [
+      { id: 'region-1', translation: '別哭。' }, { id: 'region-2', translation: '回家吧。' },
+    ] })]);
+    const context = { source: 'pdf_document' as const, pageNumber: 2, currentPageText: '',
+      previousPageText: '名前は葵', nextPageText: '', previousTranslations: [] };
+    const result = await runTranslate([makeRegion(), makeRegion({ id: 'region-2', sourceText: '帰ろう' })],
+      { ...baseConfig, localTextOnly: true, translationContext: context });
+    expect(result.regions).toHaveLength(2);
+    expect(sent).toHaveLength(1);
+    expect(JSON.stringify(sent)).toContain('名前は葵');
+    expect(JSON.stringify(sent)).not.toContain('image_url');
+  });
+
+  it.each(['not json', '{"regions":[]}'])('does not add paid region repairs after %s in economy mode', async (content) => {
+    const sent = installRuntimeChatSequence([content]);
+    await expect(runTranslate([makeRegion()], { ...baseConfig, localTextOnly: true })).rejects.toThrow();
+    expect(sent).toHaveLength(1);
+  });
   it('passes custom-model state through the LLM request', async () => {
     const sentChatMessages = installRuntimeChatSequence([
       JSON.stringify({

@@ -64,6 +64,7 @@ export function clearPhotoStateTiming(state: PhotoState): void {
 }
 
 export function resetPhotoStateForImageTranslation(state: PhotoState): void {
+  state.translationMethod = undefined;
   state.status = 'running';
   state.mode = 'original';
   state.errorText = '';
@@ -106,6 +107,11 @@ export function applyImageTranslationProgress(
   event: ImageTranslationExecutionProgress,
   options: PhotoStateProjectionOptions = {},
 ): void {
+  if (event.phase === 'method') {
+    state.translationMethod = event.description;
+    options.onProgress?.();
+    return;
+  }
   if (event.phase === 'preparing') {
     state.stageText = event.operation === 'acquire-source' ? '获取图片中' : '准备中';
     options.onProgress?.();

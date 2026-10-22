@@ -22,7 +22,11 @@ export function createReadingModeBarUi(): ReadingModeBarUi {
   errorLine.setAttribute('aria-live', 'polite');
 
   host.appendChild(actions);
+  const methodLine = document.createElement('div');
+  methodLine.className = 'mt-x-detail';
+  methodLine.setAttribute('role', 'status');
+  host.appendChild(methodLine);
   host.appendChild(errorLine);
 
-  return { host, translateCurrentBtn, translateAllBtn, errorLine };
+  return { host, translateCurrentBtn, translateAllBtn, errorLine, methodLine };
 }

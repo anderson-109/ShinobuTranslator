@@ -17,6 +17,7 @@ import { sanitizeExtensionSettings } from '../../../apps/extension/src/shared/di
 import type { ExtensionExecutionSnapshot } from '../../../apps/extension/src/shared/extensionControl';
 import {
   createImageTranslationExecutionModule,
+  describeTranslationMethod,
   ImageTranslationExecutionKindNotAllowedError,
   type ImageTranslationExecutionProgress,
 } from '../../../apps/extension/src/content/core/translation/imageTranslationExecution';
@@ -50,6 +51,20 @@ function completedLocalResult(image: Blob): LocalPipelineResult {
     },
   };
 }
+
+describe('translation method disclosure', () => {
+  it('uses the actual pipeline engine and model without credentials', () => {
+    const snapshot = executionSnapshot();
+    snapshot.pipelineConfig = { ...toPipelineConfig(defaultExtensionSettings), translator: 'llm',
+      localTextOnly: true, ocrEngine: 'yomitoku', llmProvider: 'openai', llmModel: 'gpt-5-mini' };
+    expect(describeTranslationMethod(snapshot)).toBe('YomiToku 本機 OCR → openai · gpt-5-mini · 快省模式：只傳文字');
+    snapshot.pipelineConfig.localTextOnly = false;
+    snapshot.pipelineConfig.ocrEngine = 'openai';
+    snapshot.pipelineConfig.llmOcrFilter = true;
+    expect(describeTranslationMethod(snapshot)).toContain('傳送文字區域圖片');
+    expect(describeTranslationMethod(snapshot)).toContain('含雲端圖片過濾');
+  });
+});
 
 afterEach(() => {
   setActiveContentSessionId(undefined);
@@ -199,6 +214,7 @@ describe('ImageTranslationExecutionModule', () => {
     });
     expect(progress).toEqual([
       { phase: 'preparing', operation: 'prepare-execution' },
+      { phase: 'method', description: 'PaddleOCR 本機 OCR → Google 文字翻譯 · 文字翻譯' },
       { phase: 'preparing', operation: 'acquire-source' },
       {
         phase: 'preparing',

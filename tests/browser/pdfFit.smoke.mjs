@@ -77,4 +77,12 @@ try {
   expect(await button.evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgb(249, 247, 255)');
   await page.screenshot({ path: 'artifacts/pdf-fit-height-solid-buttons.png' });
   console.log('PASS translation buttons remain opaque with readable text and on hover');
+  await button.click();
+  await expect(page.locator('#reading-anchor [role="status"]')).toContainText('PaddleOCR 本機 OCR', { timeout: 20000 });
+  await expect(page.locator('#reading-anchor [role="status"]')).toContainText('Google 文字翻譯');
+  await expect(page.locator('#reading-anchor [role="status"]')).toContainText('最多 2 頁並行');
+  await page.locator('#stop').click();
+  await expect.poll(async () => page.locator('#pdf-page').evaluate(image => Math.abs(image.getBoundingClientRect().bottom - innerHeight) < 2)).toBe(true);
+  await page.screenshot({ path: 'artifacts/pdf-translation-method.png' });
+  console.log('PASS clicking translation discloses actual OCR, translator and page concurrency in toolbar');
 } finally { await context.close(); }

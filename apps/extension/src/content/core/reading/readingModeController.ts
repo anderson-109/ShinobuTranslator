@@ -57,6 +57,9 @@ export class ReadingModeController {
   private globalTranslateMode: 'original' | 'translated' = 'original';
   private activeActivity: ImageTranslationExecutionActivity | null = null;
   private errorText = '';
+  private methodText = '';
+  private activeMethodText = '';
+  private cacheHitCount = 0;
   private currentProgressText = '准备中';
   private allProgressText = '准备中';
   private readingContextKey: string | null = null;
@@ -156,6 +159,7 @@ export class ReadingModeController {
       if (!bar) return;
 
       const totalPages = this.allPageUrls.length;
+      if (bar.methodLine) bar.methodLine.textContent = this.methodText;
       bar.errorLine.textContent = this.errorText;
       if (this.errorText) {
         bar.errorLine.dataset.variant = 'error';
@@ -240,6 +244,7 @@ export class ReadingModeController {
         return s?.translatedUrl;
       });
       if (allTranslated) {
+        this.methodText = '使用已完成的翻譯結果切換顯示，無須重新呼叫翻譯服務。';
         this.globalTranslateMode = this.globalTranslateMode === 'translated' ? 'original' : 'translated';
         for (const page of visiblePages) {
           const state = this.stateStore.get(page.key);
@@ -461,6 +466,8 @@ export class ReadingModeController {
 
       // Skip if already translated
       if (members.every((member) => this.stateStore.get(member.key)?.translatedUrl)) {
+        this.cacheHitCount += members.length;
+        this.updateMethodText();
         return { status: 'skipped' };
       }
 
@@ -468,6 +475,8 @@ export class ReadingModeController {
         const cached = await this.adapter.getCachedReadingPage(primary).catch(() => null);
         if (activity.signal.aborted) return { status: 'cancelled' };
         if (cached) {
+          ++this.cacheHitCount;
+          this.updateMethodText();
           state.translatedUrl = URL.createObjectURL(cached);
           state.status = 'translated';
           state.mode = 'translated';
@@ -515,7 +524,15 @@ export class ReadingModeController {
         state: projectionState,
         includeElapsedText: false,
         jankMonitor,
-        onChange: () => onProgress(projectionState.stageText),
+        onChange: () => {
+          if (this.activeActivity !== activity || activity.signal.aborted) return;
+          if (projectionState.translationMethod) {
+            const concurrency = this.adapter.getReadingConcurrency?.() === 2 ? 2 : 1;
+            this.activeMethodText = `${projectionState.translationMethod} · 最多 ${concurrency} 頁並行`;
+            this.updateMethodText();
+          }
+          onProgress(projectionState.stageText);
+        },
       });
       try {
         const outcome = await task.result;
@@ -600,9 +617,18 @@ export class ReadingModeController {
       ), 0);
     }
 
+  private updateMethodText(): void {
+      const cache = this.cacheHitCount ? `已有 ${this.cacheHitCount} 頁使用快取，這些頁面無須呼叫翻譯服務。` : '';
+      this.methodText = [this.activeMethodText, cache].filter(Boolean).join(' · ');
+      if (this.readingBarUi?.methodLine) this.readingBarUi.methodLine.textContent = this.methodText;
+    }
+
   private beginActivity(): ImageTranslationExecutionActivity {
       const activity = this.executionArbiter.begin();
       this.activeActivity = activity;
+      this.activeMethodText = '';
+      this.cacheHitCount = 0;
+      this.methodText = '正在確認翻譯方式…';
       return activity;
     }
 

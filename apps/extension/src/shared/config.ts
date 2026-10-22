@@ -115,6 +115,7 @@ const previousOptimizedGeminiAppPromptTemplate = [
 ].join('\n');
 
 export type ExtensionSettings = {
+  localTextOnly?: boolean;
   sourceLang: string;
   targetLang: string;
   imageEngine: ImageEngine;
@@ -143,6 +144,7 @@ export type ExtensionSettings = {
 };
 
 export const defaultExtensionSettings: ExtensionSettings = {
+  localTextOnly: false,
   sourceLang: 'ja',
   targetLang: 'zh-CHS',
   imageEngine: 'local',
@@ -429,6 +431,7 @@ export function normalizeSettings(value: unknown): ExtensionSettings {
   );
   return {
     sourceLang: defaultExtensionSettings.sourceLang,
+    localTextOnly: sanitizeBoolean(raw.localTextOnly, false),
     targetLang: normalizeTargetLang(raw.targetLang),
     imageEngine: normalizeImageEngine(),
     geminiAppExperimentalEnabled,
@@ -515,7 +518,8 @@ export function usesGeminiApiImagePipeline(settings: GeminiImagePipelineSelectio
 }
 
 export function validateSettings(settings: ExtensionSettings): string | null {
-  if (settings.ocrEngine === 'openai' && !usesNanoBananaImagePipeline(settings)) {
+  if (settings.localTextOnly && settings.translator === 'llm' && settings.llmProvider === 'gemini') return '快省模式需要純文字翻譯供應商，請選 OpenAI 或自訂相容 API；Nano Banana 請先關閉快省模式。';
+  if (!settings.localTextOnly && settings.ocrEngine === 'openai' && !usesNanoBananaImagePipeline(settings)) {
     if (settings.translator !== 'llm' || settings.llmProvider !== 'openai'
       || settings.llmProfiles.openai.authMode !== 'api_key') {
       return 'OpenAI OCR 需要选择 LLM / OpenAI / API Key，并使用支持图片的模型';
@@ -562,6 +566,7 @@ export function toPipelineConfig(settings: ExtensionSettings): PipelineConfig {
   const profile = settings.llmProfiles[settings.llmProvider];
   return {
     sourceLang: 'ja',
+    localTextOnly: settings.localTextOnly === true,
     targetLang: settings.targetLang,
     translator: settings.translator,
     llmProvider: settings.llmProvider,
@@ -579,9 +584,9 @@ export function toPipelineConfig(settings: ExtensionSettings): PipelineConfig {
     typesetDebug: settings.showTypesetDebug,
     eraseDebug: settings.showEraseDebug,
     collectDebugLog: settings.showTypesetDebug || settings.enableDebugLog,
-    ocrEngine: settings.ocrEngine,
+    ocrEngine: settings.localTextOnly && settings.ocrEngine === 'openai' ? 'paddleocr_v6_medium' : settings.ocrEngine,
     ocrPostFilter: settings.disableOcrPostFilter ? 'off' : 'balanced',
-    llmOcrFilter: settings.enableLlmOcrFilter && settings.translator === 'llm' && !usesNanoBananaImagePipeline(settings),
+    llmOcrFilter: !settings.localTextOnly && settings.enableLlmOcrFilter && settings.translator === 'llm' && !usesNanoBananaImagePipeline(settings),
     processMode: settings.processMode,
   };
 }

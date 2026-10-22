@@ -147,9 +147,9 @@ export async function runTranslate<T extends TextTranslationRegion>(
   config: TextTranslationConfig,
   options: RunTranslateOptions = {},
 ): Promise<TextTranslationResult<T>> {
-  if (regions.length === 0) {
+  if (regions.length === 0 || (config.localTextOnly && regions.every((region) => !region.sourceText.trim()))) {
     return {
-      regions: [],
+      regions: regions.map((region) => ({ ...region, translatedText: '' })),
       translationDebug: null,
     };
   }
@@ -167,6 +167,7 @@ export async function runTranslate<T extends TextTranslationRegion>(
       } catch (error) {
         if (
           !tweetContextLengthFallback
+          && !activeConfig.localTextOnly
           && activeConfig.translationContext
           && isTweetContextLengthError(error)
         ) {
@@ -206,7 +207,7 @@ export async function runTranslate<T extends TextTranslationRegion>(
       batched = batchedResult.byId;
       translationDebug.llmBatchRawResponse = batchedResult.rawContent;
     } catch (error) {
-      if (error instanceof LlmThinkingConfigError || hasPipelineFailure(error)) {
+      if (config.localTextOnly || error instanceof LlmThinkingConfigError || hasPipelineFailure(error)) {
         throw error;
       }
       batched = new Map();
@@ -218,11 +219,18 @@ export async function runTranslate<T extends TextTranslationRegion>(
       }
     }
 
+    if (config.localTextOnly && regions.some((region) => region.sourceText.trim() && !batched.get(region.id)?.translatedText.trim())) {
+      throw new Error('快省模式：整頁翻譯回應不完整，請重試此頁；未逐區追加 API 請求。');
+    }
     const next: T[] = [];
     let llmBatchHitRegionCount = 0;
     let llmFallbackRegionCount = 0;
     let llmFallbackRequestCount = 0;
     for (const region of regions) {
+      if (config.localTextOnly && !region.sourceText.trim()) {
+        next.push({ ...region, translatedText: '', translatedColumns: undefined });
+        continue;
+      }
       const result = batched.get(region.id);
       if (result?.translatedText) {
         llmBatchHitRegionCount += 1;

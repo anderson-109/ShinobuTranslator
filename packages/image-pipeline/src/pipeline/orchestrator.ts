@@ -423,6 +423,7 @@ export async function runPipeline(
   }
   const stageTimings: StageTiming[] = [];
   const signal = options.signal;
+  if (config.localTextOnly && config.ocrEngine === 'openai') throw new Error('快省模式必須使用本機 OCR');
   const stopAfterOrder = options.stopAfter === "order";
   const collectStagePreviews = (globalThis as typeof globalThis & {
     __shinobuColdStartPixelFastPath?: boolean;
@@ -881,7 +882,7 @@ export async function runPipeline(
     }
   }
 
-  if (config.llmOcrFilter && config.translator === 'llm' && latestRegions.length > 0) {
+  if (!config.localTextOnly && config.llmOcrFilter && config.translator === 'llm' && latestRegions.length > 0) {
     throwIfCancelled(signal);
     report(onProgress, 'llm_ocr_filter', '大模型误识别过滤');
     const t0 = performance.now();

@@ -40,7 +40,8 @@ describe('reading mode bar', () => {
       ui.translateCurrentBtn,
       ui.translateAllBtn,
     ]);
-    expect(host.children[1]).toBe(ui.errorLine);
+    expect(host.children[1]).toBe(ui.methodLine);
+    expect(host.children[2]).toBe(ui.errorLine);
     expect(ui.errorLine.className).toBe('mt-x-detail');
   });
 });

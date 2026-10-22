@@ -1061,6 +1061,12 @@ export function App() {
                       align="start"
                       collisionPadding={8}
                     >
+                      <div className="mode-options-switch-row">
+                            <Switch id="local-text-only" checked={settings.localTextOnly === true}
+                              onCheckedChange={(checked) => updateField('localTextOnly', checked)} disabled={loading} />
+                            <Label htmlFor="local-text-only">快省模式：本機 OCR＋純文字翻譯</Label>
+                          </div>
+                          <p className="field-hint">此開關套用即時翻譯：只傳文字、使用本機 OCR、停用雲端看圖過濾；整頁回應不完整時由你重試，避免逐區追加費用。Batch 目前仍傳送頁面圖片。</p>
                       {showLocalPipelineOptions ? (
                         <>
                           <div className="field">
@@ -1074,10 +1080,11 @@ export function App() {
                               ]}
                               value={settings.ocrEngine}
                               onChange={(value) => updateField('ocrEngine', value as ExtensionSettingsProjection['ocrEngine'])}
-                              disabled={loading}
+                              disabled={loading || settings.localTextOnly === true}
                             />
+                            {settings.localTextOnly ? <p className="field-hint">目前使用 {settings.ocrEngine === 'yomitoku' ? 'YomiToku' : 'PaddleOCR'} 本機 OCR。切換 OCR 引擎前請先關閉快省模式。</p> : null}
                             {settings.ocrEngine === 'yomitoku' ? <p className="field-hint">先執行「啟動YomiToku.cmd」。OCR 在本機 127.0.0.1:8766 處理；Batch 模式直接使用 OpenAI 圖片辨識與翻譯。</p> : null}
-                            {settings.ocrEngine === 'openai' ? (
+                            {settings.ocrEngine === 'openai' && !settings.localTextOnly ? (
                               <p>请选择 LLM → OpenAI → API Key，填入密钥并选择支持图片的模型（例如 gpt-4.1-mini）。OCR 会发送文字区域图片并产生 API 费用。</p>
                             ) : null}
                           </div>
@@ -1098,7 +1105,7 @@ export function App() {
                                 id="enable-llm-ocr-filter"
                                 checked={settings.enableLlmOcrFilter}
                                 onCheckedChange={(checked) => updateField('enableLlmOcrFilter', checked)}
-                                disabled={loading || settings.translator !== 'llm'}
+                                disabled={loading || settings.translator !== 'llm' || settings.localTextOnly === true}
                               />
                               <Label htmlFor="enable-llm-ocr-filter">大模型误识别过滤</Label>
                             </div>

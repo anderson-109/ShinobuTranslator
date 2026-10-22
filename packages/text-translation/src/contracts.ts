@@ -101,6 +101,7 @@ export interface TextTranslationTransport {
 }
 
 export type TextTranslationConfig = {
+  localTextOnly?: boolean;
   sourceLang: string;
   targetLang: string;
   translator: 'google_web' | 'llm';

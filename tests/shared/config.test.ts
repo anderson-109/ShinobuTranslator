@@ -19,6 +19,14 @@ import {
 } from "../../apps/extension/src/shared/config";
 
 describe("built-in LLM catalog", () => {
+  it('persists economy mode and replaces cloud OCR while disabling image filtering', () => {
+    const settings = normalizeSettings({ localTextOnly: true, translator: 'llm', llmProvider: 'openai',
+      ocrEngine: 'openai', enableLlmOcrFilter: true });
+    expect(normalizeSettings(settings).localTextOnly).toBe(true);
+    expect(toPipelineConfig(settings)).toMatchObject({ localTextOnly: true, ocrEngine: 'paddleocr_v6_medium', llmOcrFilter: false });
+    expect(toPipelineConfig({ ...settings, ocrEngine: 'yomitoku' }).ocrEngine).toBe('yomitoku');
+    expect(validateSettings({ ...settings, llmProvider: 'gemini' })).toContain('純文字');
+  });
   it.each(['autoTranslate', 'simpleButtons'] as const)('defaults %s off and accepts only a boolean preference', (preference) => {
     expect(normalizeSettings({})[preference]).toBe(false);
     expect(normalizeSettings({ [preference]: 'true' })[preference]).toBe(false);

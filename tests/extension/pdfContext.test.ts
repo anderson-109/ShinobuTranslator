@@ -69,6 +69,8 @@ describe('PDF context and OpenAI compatibility', () => {
   it('keys caches by PDF content and translation settings, never by credentials or UI preferences', async () => {
     const pdf = new Uint8Array([1, 2, 3]);
     const a = await pdfCacheKey(pdf, { targetLang: 'zh-CHT', model: 'gpt-4o-mini', apiKey: 'one', autoTranslate: false });
+    expect(await pdfCacheKey(pdf, { targetLang: 'zh-CHT', model: 'gpt-4o-mini', localTextOnly: false })).toBe(a);
+    expect(await pdfCacheKey(pdf, { targetLang: 'zh-CHT', model: 'gpt-4o-mini', localTextOnly: true })).not.toBe(a);
     expect(await pdfCacheKey(pdf, { apiKey: 'two', model: 'gpt-4o-mini', targetLang: 'zh-CHT', autoTranslate: true })).toBe(a);
     expect(await pdfCacheKey(pdf, { model: 'gpt-4o-mini', targetLang: 'en' })).not.toBe(a);
     expect(await pdfCacheKey(new Uint8Array([1, 2, 4]), { model: 'gpt-4o-mini', targetLang: 'zh-CHT' })).not.toBe(a);

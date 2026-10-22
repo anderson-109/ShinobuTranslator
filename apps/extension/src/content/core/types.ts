@@ -82,6 +82,7 @@ export type ReadingPageDiscovery =
     };
 
 export interface ReadingModeBarUi {
+  methodLine?: HTMLElement;
   host: HTMLElement;
   translateCurrentBtn: HTMLButtonElement;
   translateAllBtn: HTMLButtonElement;
@@ -214,6 +215,7 @@ export type ErrorDetailCardData = {
 };
 
 export type PhotoState = {
+  translationMethod?: string;
   layerEditing?: LayerEditingState;
   status: PhotoViewStatus;
   mode: PhotoDisplayMode;

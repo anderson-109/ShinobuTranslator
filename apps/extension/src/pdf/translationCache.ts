@@ -28,6 +28,7 @@ export async function pdfCacheKey(bytes: Uint8Array, settings: unknown): Promise
   const clean = (value: unknown): unknown => {
     if (Array.isArray(value)) return value.map(clean);
     if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value)
+      .filter(([key, child]) => key !== 'localTextOnly' || child === true)
       .filter(([key]) => !/^(?:apiKey|accessToken|refreshToken|autoTranslate|show.*|enableDebugLog|translationButtonStyle)$/u.test(key))
       .sort(([a], [b]) => a.localeCompare(b)).map(([key, child]) => [key, clean(child)]));
     return value;

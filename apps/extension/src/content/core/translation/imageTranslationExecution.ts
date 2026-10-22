@@ -53,6 +53,21 @@ import { tryDownloadXPageImage } from './pageImageDownloader';
 
 export type ImageTranslationExecutionKind = 'local-pipeline' | 'whole-image';
 
+export function describeTranslationMethod(snapshot: ExtensionExecutionSnapshot): string {
+  if (snapshot.kind === 'whole-image') {
+    return `整張圖片翻譯：${snapshot.wholeImage?.provider === 'gemini-app' ? 'Gemini 網頁' : 'Gemini API'} · ${snapshot.wholeImage?.modelLabel ?? '目前模型'}（傳送圖片）`;
+  }
+  const config = snapshot.pipelineConfig;
+  if (!config) return '無法取得翻譯方式';
+  const ocr = config.ocrEngine === 'openai' ? 'OpenAI 雲端 OCR（傳送文字區域圖片）'
+    : config.ocrEngine === 'yomitoku' ? 'YomiToku 本機 OCR' : 'PaddleOCR 本機 OCR';
+  const translation = config.translator === 'google_web' ? 'Google 文字翻譯'
+    : `${config.llmProvider} · ${config.llmModel}`;
+  const extra = config.localTextOnly ? '快省模式：只傳文字'
+    : config.llmOcrFilter ? '含雲端圖片過濾' : '文字翻譯';
+  return `${ocr} → ${translation} · ${extra}`;
+}
+
 export type ImageTranslationSource =
   | {
       kind: 'remote-image';
@@ -86,6 +101,7 @@ export type AcquiredImageTranslationSource = {
 };
 
 export type ImageTranslationExecutionProgress =
+  | { phase: 'method'; description: string }
   | {
       phase: 'preparing';
       operation: 'prepare-execution' | 'acquire-source';
@@ -584,6 +600,7 @@ export function createImageTranslationExecutionModule(
       config.translationContext = request.translationContext;
     }
     if (config && diagnosticRunId) config.diagnosticRunId = diagnosticRunId;
+    reportProgress({ phase: 'method', description: describeTranslationMethod(preparation) });
     const executePipeline = (file: File | Promise<File>): Promise<LocalPipelineResult> => (
       executeLocalPipeline(file, config!, (progress) => {
         if (diagnosticRunId) {
