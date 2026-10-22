@@ -121,6 +121,18 @@ function createHarness(diagnostics?: DiagnosticLogEmitter): {
 }
 
 describe('PipelineHostBroker', () => {
+  it('leaves content-session and settings ports to their owning listeners', () => {
+    let listener: (port: ExtensionPort) => void = () => {};
+    const api: ExtensionBrowserApi = { runtime: { onConnect: { addListener: handler => { listener = handler; } } } };
+    const broker = new PipelineHostBroker(api);
+    broker.register();
+    for (const name of ['mt:content-session:test', 'mt:extension-control-events']) {
+      const port = new FakePort(name);
+      listener(port);
+      expect(port.disconnected).toBe(false);
+      expect(port.messageListeners).toHaveLength(0);
+    }
+  });
   it('admits two jobs only when the host advertises capacity and refills the freed slot', async () => {
     const { broker, host } = createHarness();
     const client = new FakePort(LOCAL_PIPELINE_CLIENT_PORT);

@@ -148,7 +148,11 @@ export class PipelineHostBroker {
   }
 
   register(): void {
-    this.api.runtime?.onConnect?.addListener((port) => this.handlePort(port));
+    this.api.runtime?.onConnect?.addListener((port) => {
+      // Other listeners own settings and content-session ports.
+      if (port.name !== LOCAL_PIPELINE_HOST_PORT && port.name !== LOCAL_PIPELINE_CLIENT_PORT) return;
+      this.handlePort(port);
+    });
   }
 
   handlePort(port: ExtensionPort): void {

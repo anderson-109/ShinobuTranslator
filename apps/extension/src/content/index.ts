@@ -12,6 +12,7 @@ import {
   toContentSessionPortName,
 } from '../shared/contentSession';
 import { bindContentLifecycle } from './core/contentLifecycle';
+import { mountFloatingTranslateButton } from './core/ui/floatingTranslateButton';
 import {
   buildScreenshotElementCandidates,
   toDocumentScreenshotRect,
@@ -49,7 +50,9 @@ const adapter = adapters.find(a => a.match())
   || (location.hostname === 'www.pixiv.net' ? pixivAdapter : createNullAdapter());
 const core = new TranslatorCore(adapter, contentSessionId);
 core.start();
-bindContentLifecycle(core, contentSessionPort);
+const disposeFloatingTranslate = mountFloatingTranslateButton(() => core.startScreenshotTranslate());
+contentSessionPort?.onDisconnect.addListener(disposeFloatingTranslate);
+bindContentLifecycle({ stop: () => { disposeFloatingTranslate(); core.stop(); } }, contentSessionPort);
 
 // --- Context menu support ---
 

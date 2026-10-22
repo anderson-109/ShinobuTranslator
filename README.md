@@ -169,6 +169,7 @@ OCR 選單新增 **YomiToku（本機服務）**，保留 PaddleOCR 與 OpenAI OC
 
 YomiToku 是可選的外部 Python 依賴，使用 `dbnetv2` 偵測與 `parseq-tiny-dynw-v4` 辨識模型。依 [官方專案](https://github.com/kotaro-kinoshita/yomitoku) 採 CC BY-NC-SA 4.0 授權；不屬於本專案 MIT 授權範圍。
 
+- 一般網頁新增右側圓形「選取範圍翻譯」入口；點擊後框選範圍，Esc 取消。入口採不透明底色，擷取期間隱藏，避免混入圖片。PDF 閱讀器仍使用上方工具列。
 - PDF 預設「適應高度」，使用工具列下方到視窗底部的可用空間；也可切換「整頁適應畫面」、「適合寬度」或「全螢幕」。翻譯按鈕及模式選單位於上方工具列。
 - Chromium 的影像處理、字型與排版管線移至專用 Worker；翻譯期間可翻頁，並可按「停止翻譯」。
   首次模型／GPU 初始化仍可能造成短暫畫面停頓，實際速度受硬體影響。
