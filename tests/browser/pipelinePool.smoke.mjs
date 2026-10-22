@@ -12,6 +12,9 @@ try {
   const page = await context.newPage();
   await page.goto(`chrome-extension://${new URL(service.url()).host}/pdf.html`);
   const results = await page.evaluate(async () => {
+    const prepared = await chrome.runtime.sendMessage({ type: 'mt:extension-control', command: { kind: 'prepare-execution' } });
+    if (!prepared.ok || !prepared.result?.snapshot?.pipelineConfig) throw new Error('Execution settings unavailable');
+    const actualConfig = prepared.result.snapshot.pipelineConfig;
     const port = chrome.runtime.connect({ name: 'mt:local-pipeline-client' });
     const ready = new Map(), finished = new Map(), outputs = new Map();
     port.onMessage.addListener(message => {
@@ -34,8 +37,7 @@ try {
       const binary = capabilities[index].structuredClone === true;
       port.postMessage({ type: 'start', jobId: id,
         file: { name: `${id}.png`, size: blob.size, type: blob.type, lastModified: 0 }, ...(binary ? { binaryFile: blob } : {}),
-        config: { sourceLang: 'ja', targetLang: 'zh-CHT', translator: 'google_web', llmProvider: 'openai', llmAuthMode: 'api_key', llmBaseUrl: '', llmModel: '',
-          typesetDebug: false, eraseDebug: false, collectDebugLog: false, ocrEngine: 'openai', processMode: 'translate' },
+        config: { ...actualConfig, localTextOnly: index === 1 },
         detection: { width: 2, height: 2, packedMaskBase64: 'AA==', regions: [] }, input: { chunkCount: binary ? 0 : 1, totalChars: binary ? 0 : base64.length },
       });
       if (!binary) port.postMessage({ type: 'input-chunk', jobId: id, index: 0, data: base64 });
@@ -50,5 +52,5 @@ try {
   const { targetInfos } = await cdp.send('Target.getTargets');
   // No PDF was loaded in this isolated profile, so only the two pipeline Workers exist.
   expect(targetInfos.filter(target => target.type === 'worker')).toHaveLength(2);
-  console.log('PASS three jobs complete through two real pipeline Workers with bounded reuse');
+  console.log('PASS actual settings with economy on/off complete through two real pipeline Workers with bounded reuse');
 } finally { await context.close(); }

@@ -393,6 +393,7 @@ function hasOnlyKeys(value: Record<string, unknown>, allowed: ReadonlySet<string
 function validateConfig(config: unknown): config is PipelineConfig {
   if (!isRecord(config)) return false;
   const allowedKeys = new Set([
+    'localTextOnly',
     'sourceLang',
     'targetLang',
     'translator',
@@ -456,6 +457,7 @@ function validateConfig(config: unknown): config is PipelineConfig {
       || config.ocrPostFilter === 'balanced'
     )
     && (config.llmOcrFilter === undefined || typeof config.llmOcrFilter === 'boolean')
+    && (config.localTextOnly === undefined || typeof config.localTextOnly === 'boolean')
     && (
       config.processMode === 'translate'
       || config.processMode === 'erase'

@@ -685,7 +685,11 @@ describe('runPipeline', () => {
     expect(pipelineMocks.drawTypeset).not.toHaveBeenCalled();
   });
 
-  it.each(['deepseek', 'alibaba', 'doubao'] as const)('accepts %s and publishes a no-text detection as a successful result', async (llmProvider) => {
+  it.each([
+    { llmProvider: 'deepseek', localTextOnly: undefined },
+    { llmProvider: 'alibaba', localTextOnly: false },
+    { llmProvider: 'doubao', localTextOnly: true },
+  ] as const)('accepts $llmProvider with economy=$localTextOnly and publishes a no-text result', async ({ llmProvider, localTextOnly }) => {
     pipelineMocks.detectTextRegionsWithMask.mockResolvedValueOnce({
       regions: [],
       rawMaskCanvas: null,
@@ -700,7 +704,7 @@ describe('runPipeline', () => {
 
     const result = await pipeline.run({
       source: createFile(),
-      config: { ...baseConfig, translator: 'llm', llmProvider },
+      config: { ...baseConfig, translator: 'llm', llmProvider, localTextOnly },
       workingCopy: { strategy: 'source-native' },
     }, { textTranslator }).result;
 
